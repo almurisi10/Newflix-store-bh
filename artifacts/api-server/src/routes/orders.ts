@@ -17,10 +17,11 @@ import {
   GetOrderDeliveryParams,
   GetOrderDeliveryResponse,
 } from "@workspace/api-zod";
+import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
 
 const router: IRouter = Router();
 
-router.get("/orders", async (req, res): Promise<void> => {
+router.get("/orders", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const query = ListOrdersQueryParams.safeParse(req.query);
   if (!query.success) {
     res.status(400).json({ error: query.error.message });
@@ -127,7 +128,7 @@ router.get("/orders/:id", async (req, res): Promise<void> => {
   res.json(GetOrderResponse.parse(order));
 });
 
-router.patch("/orders/:id", async (req, res): Promise<void> => {
+router.patch("/orders/:id", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = UpdateOrderStatusParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -146,7 +147,7 @@ router.patch("/orders/:id", async (req, res): Promise<void> => {
   res.json(UpdateOrderStatusResponse.parse(order));
 });
 
-router.post("/orders/:id/confirm-payment", async (req, res): Promise<void> => {
+router.post("/orders/:id/confirm-payment", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = ConfirmPaymentParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -212,6 +213,13 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Order not found" });
     return;
   }
+
+  const requestUid = req.query.firebaseUid as string;
+  if (requestUid && order.firebaseUid !== requestUid) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
   if (order.status !== "paid") {
     res.status(403).json({ error: "Order not paid" });
     return;
@@ -224,22 +232,42 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
     if (!product) continue;
 
-    const inventoryItems = await db.select().from(inventoryItemsTable)
-      .where(and(
-        eq(inventoryItemsTable.productId, product.id),
-        eq(inventoryItemsTable.orderId, order.id),
-        eq(inventoryItemsTable.status, "delivered")
-      ));
-
-    for (const inv of inventoryItems) {
+    if (product.deliveryMode === "single_code" && product.singleCodeValue) {
       deliveryItems.push({
         productId: product.id,
         titleAr: product.titleAr,
         titleEn: product.titleEn,
         productType: product.productType,
-        deliveryData: inv.data,
-        deliveredAt: inv.deliveredAt?.toISOString() ?? new Date().toISOString(),
+        deliveryData: product.singleCodeValue,
+        deliveredAt: order.updatedAt?.toISOString() ?? new Date().toISOString(),
       });
+    } else if (product.deliveryMode === "whatsapp_manual") {
+      deliveryItems.push({
+        productId: product.id,
+        titleAr: product.titleAr,
+        titleEn: product.titleEn,
+        productType: product.productType,
+        deliveryData: "WHATSAPP_DELIVERY",
+        deliveredAt: order.updatedAt?.toISOString() ?? new Date().toISOString(),
+      });
+    } else {
+      const inventoryItems = await db.select().from(inventoryItemsTable)
+        .where(and(
+          eq(inventoryItemsTable.productId, product.id),
+          eq(inventoryItemsTable.orderId, order.id),
+          eq(inventoryItemsTable.status, "delivered")
+        ));
+
+      for (const inv of inventoryItems) {
+        deliveryItems.push({
+          productId: product.id,
+          titleAr: product.titleAr,
+          titleEn: product.titleEn,
+          productType: product.productType,
+          deliveryData: inv.data,
+          deliveredAt: inv.deliveredAt?.toISOString() ?? new Date().toISOString(),
+        });
+      }
     }
   }
 

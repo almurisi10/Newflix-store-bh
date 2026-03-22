@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, real, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, real, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,7 +14,12 @@ export const ordersTable = pgTable("orders", {
   total: real("total").notNull(),
   couponCode: text("coupon_code"),
   status: text("status").notNull().default("pending"),
-  paymentMethod: text("payment_method"),
+  paymentMethod: text("payment_method").default("benefitpay"),
+  receiptImage: text("receipt_image"),
+  receiptStatus: text("receipt_status").default("pending"),
+  aiVerificationResult: jsonb("ai_verification_result"),
+  loyaltyPointsEarned: integer("loyalty_points_earned").default(0),
+  selectedPackage: text("selected_package"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

@@ -12,6 +12,7 @@ import {
   UpdateProductResponse,
   DeleteProductParams,
 } from "@workspace/api-zod";
+import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
 
 const router: IRouter = Router();
 
@@ -23,9 +24,10 @@ router.get("/products", async (req, res): Promise<void> => {
   }
 
   const { category, search, minPrice, maxPrice, featured, bestseller, hasDiscount, sortBy, page = 1, limit = 20 } = query.data;
+  const showAll = req.query.admin === "true";
 
   const conditions: any[] = [];
-  conditions.push(eq(productsTable.active, true));
+  if (!showAll) conditions.push(eq(productsTable.active, true));
 
   if (search) {
     conditions.push(
@@ -65,7 +67,7 @@ router.get("/products", async (req, res): Promise<void> => {
   }));
 });
 
-router.post("/products", async (req, res): Promise<void> => {
+router.post("/products", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const parsed = CreateProductBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -100,7 +102,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
   res.json(GetProductResponse.parse(product));
 });
 
-router.patch("/products/:id", async (req, res): Promise<void> => {
+router.patch("/products/:id", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = UpdateProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -119,7 +121,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   res.json(UpdateProductResponse.parse(product));
 });
 
-router.delete("/products/:id", async (req, res): Promise<void> => {
+router.delete("/products/:id", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = DeleteProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

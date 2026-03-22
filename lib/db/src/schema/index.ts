@@ -9,3 +9,4 @@ export * from "./admin-users";
 export * from "./site-content";
 export * from "./admin-activity-logs";
 export * from "./admin-settings";
+export * from "./loyalty";

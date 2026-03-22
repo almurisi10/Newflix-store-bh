@@ -3,9 +3,14 @@ import { eq } from "drizzle-orm";
 import { db, adminUsersTable, adminSettingsTable, adminActivityLogsTable } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import admin from "firebase-admin";
 
 const JWT_SECRET = process.env.JWT_SECRET || "newflix-admin-secret-key-2024";
 const INVITE_CODE = process.env.ADMIN_INVITE_CODE || "";
+
+if (!admin.apps.length) {
+  admin.initializeApp({ projectId: "dukani-emq1m" });
+}
 
 const router: IRouter = Router();
 
@@ -121,6 +126,67 @@ router.post("/admin-auth/login", async (req, res): Promise<void> => {
       role: admin.role,
     },
   });
+});
+
+router.post("/admin-auth/firebase-login", async (req, res): Promise<void> => {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    res.status(400).json({ error: "Firebase ID token is required" });
+    return;
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const email = decodedToken.email;
+
+    if (!email) {
+      res.status(400).json({ error: "No email associated with this account" });
+      return;
+    }
+
+    const [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+
+    if (!existingAdmin) {
+      res.status(403).json({ error: "No admin account found for this email. Register first with an invite code." });
+      return;
+    }
+
+    if (!existingAdmin.active) {
+      res.status(403).json({ error: "Account is deactivated" });
+      return;
+    }
+
+    await db.update(adminUsersTable).set({ lastLoginAt: new Date() }).where(eq(adminUsersTable.id, existingAdmin.id));
+
+    await db.insert(adminActivityLogsTable).values({
+      adminEmail: email,
+      action: "firebase_login",
+      entityType: "admin_user",
+      entityId: String(existingAdmin.id),
+      details: { provider: "firebase" },
+      ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
+    });
+
+    const token = jwt.sign(
+      { id: existingAdmin.id, email: existingAdmin.email, role: existingAdmin.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      token,
+      admin: {
+        id: existingAdmin.id,
+        email: existingAdmin.email,
+        displayName: existingAdmin.displayName,
+        role: existingAdmin.role,
+      },
+    });
+  } catch (err: any) {
+    console.error("Firebase login error:", err);
+    res.status(401).json({ error: "Invalid Firebase token" });
+  }
 });
 
 router.get("/admin-auth/me", async (req, res): Promise<void> => {

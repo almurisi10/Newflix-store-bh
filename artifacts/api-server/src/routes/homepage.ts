@@ -6,6 +6,7 @@ import {
   UpdateHomepageSectionsBody,
   UpdateHomepageSectionsResponse,
 } from "@workspace/api-zod";
+import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
 
 const router: IRouter = Router();
 
@@ -14,7 +15,7 @@ router.get("/homepage/sections", async (_req, res): Promise<void> => {
   res.json(ListHomepageSectionsResponse.parse(sections));
 });
 
-router.put("/homepage/sections", async (req, res): Promise<void> => {
+router.put("/homepage/sections", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const parsed = UpdateHomepageSectionsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

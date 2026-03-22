@@ -16,7 +16,8 @@
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 - **Frontend**: React 19 + Vite + Tailwind CSS v4
-- **Auth**: Firebase Auth (project: `dukani-emq1m`)
+- **Auth**: Firebase Auth (project: `dukani-emq1m`) for customers, JWT for admin
+- **AI**: Gemini 2.5 Flash via AI Integrations proxy (receipt verification, product description generation)
 - **UI**: shadcn/ui components, Lucide icons, Framer Motion animations
 - **Routing**: wouter
 - **State**: React Query for API, React Context for cart/auth/language
@@ -49,73 +50,86 @@ artifacts-monorepo/
 
 - **Admin Login**: `/Newflix-login` — separate from customer auth, JWT-based sessions
 - **Invite Code**: Server-validated via `ADMIN_INVITE_CODE` env var (`Almurisi34490039@`)
-- **Admin Auth**: bcryptjs password hashing, JWT tokens (7-day expiry), admin middleware
+- **Admin Auth**: bcryptjs password hashing, JWT tokens (7-day expiry), admin middleware (`requireAdmin`)
 - **Signup Toggle**: Admin can disable new admin registration from Settings
 - **CMS**: `site_content` table stores all editable text (AR/EN) with content keys
-- **Inline Editing**: When admin logged in, toggle "Edit Mode" to see pencil icons on editable text; supports text, color, font-size, font-weight editing
-- **Activity Logs**: All admin actions (login, content edits, setting changes) logged to `admin_activity_logs`
+- **Inline Editing**: When admin logged in, toggle "Edit Mode" to see pencil icons on editable text
+- **Activity Logs**: All admin actions logged to `admin_activity_logs`
 - **Homepage Ordering**: Drag-and-drop section reordering in admin dashboard
-- **Admin Dashboard Tabs**: Overview, Page Management, Homepage Sections, Content (CMS), Products, Orders, Activity Log, Settings
 
-## Frontend Architecture (`artifacts/web/`)
+## Admin Dashboard Tabs
+
+- **Overview**: Revenue, orders count, products count, low stock alerts, recent orders
+- **Products**: Full CRUD with AI description generation, delivery mode (multi_code/single_code/whatsapp_manual), packages/tiers, inventory code management
+- **Orders**: Table with receipt viewer, AI verification results, confirm/reject payment actions
+- **Coupons**: Full CRUD (create/toggle/delete) with percentage/fixed discount types
+- **Users**: Customer list derived from orders with total spent and order count
+- **Loyalty Points**: Display loyalty system info (1 BHD = 1 point, auto-awarded)
+- **Payment**: BenefitPay configuration display (name: ESMAIL ALMURISI, number: 34490039)
+- **Homepage**: Drag-and-drop section ordering with visibility toggles
+- **Content (CMS)**: Inline text editing for all site content (AR/EN)
+- **Pages**: Page overview with sections breakdown
+- **Activity**: Admin activity log
+- **Settings**: Toggle admin signup, maintenance mode
+
+## Payment & Delivery Flow
+
+1. Customer creates order → status: `pending`
+2. Customer transfers via BenefitPay to ESMAIL ALMURISI / 34490039
+3. Customer uploads receipt image
+4. AI (Gemini 2.5 Flash) verifies: name match, number match, amount match, fraud detection
+5. If verified → auto-delivers codes, awards loyalty points, status: `paid`
+6. If not verified → stays `pending`, admin can manually confirm/reject
+7. Delivery modes:
+   - `multi_code`: Unique code per purchase from inventory
+   - `single_code`: Same code for all customers
+   - `whatsapp_manual`: Manual delivery via WhatsApp
+
+## Frontend Pages
 
 ```text
-src/
-├── App.tsx                 # Root with providers: Theme, QueryClient, Language, Auth, Cart
-├── index.css               # Tailwind + brand CSS variables (light/dark)
-├── main.tsx                # ReactDOM entry
-├── components/
-│   ├── Navbar.tsx           # Sticky header with RTL support, mobile drawer
-│   ├── Footer.tsx           # 4-column footer
-│   ├── ProductCard.tsx      # Product card with hover animation
-│   ├── CartDrawer.tsx       # Slide-out cart panel
-│   ├── LanguageSwitcher.tsx # AR/EN toggle
-│   ├── ThemeToggle.tsx      # Dark/light toggle (next-themes)
-│   ├── WhatsAppButton.tsx   # Floating WhatsApp button
-│   └── ui/                  # shadcn/ui primitives
-├── contexts/
-│   ├── LanguageContext.tsx   # AR/EN with translations, dir, localStorage
-│   ├── CartContext.tsx       # Cart items, quantities, localStorage persistence
-│   ├── AuthContext.tsx       # Firebase Auth state (customer)
-│   ├── AdminAuthContext.tsx  # Admin JWT auth (login/register/me)
-│   ├── SiteContentContext.tsx # CMS content provider (loads all site text)
-│   └── EditModeContext.tsx   # Inline editing toggle for admins
-├── lib/
-│   ├── firebase.ts          # Firebase app initialization
-│   └── utils.ts             # cn() utility
-└── pages/
-    ├── Home.tsx              # Hero, features, categories, featured products, CTA
-    ├── Shop.tsx              # Product grid with sidebar filters, search
-    ├── ProductDetail.tsx     # Full product page with gallery, quantity selector
-    ├── Cart.tsx              # Cart page with coupon code support
-    ├── Checkout.tsx          # Checkout form with order summary
-    ├── Auth.tsx              # Login/register with Firebase (customers)
-    ├── AdminLogin.tsx        # Admin login/register at /Newflix-login
-    ├── AdminDashboard.tsx    # Full admin dashboard with sidebar + tabs
-    └── not-found.tsx         # 404 page
+/                  → Homepage (hero, features, categories, products, CTA)
+/shop              → Product grid with filters, search, categories
+/product/:id       → Product detail page
+/cart              → Cart with coupon support
+/checkout          → BenefitPay payment + receipt upload
+/login             → Customer Firebase auth
+/account           → Account hub
+/account/orders    → My Orders with delivery codes
+/account/wishlist  → Wishlist
+/account/settings  → Account settings
+/about             → About page
+/contact           → Contact page
+/faq               → FAQ page
+/terms             → Terms page
+/Newflix-login      → Admin login
+/Newflix-admin      → Admin dashboard
 ```
 
 ## API Routes (`artifacts/api-server/`)
 
 All routes mounted at `/api`:
 - `GET /api/healthz` — health check
-- `GET/POST /api/products` — list/create products
+- `GET/POST /api/products` — list/create products (admin: `?admin=true` shows inactive)
 - `GET/PATCH/DELETE /api/products/:id` — single product CRUD
 - `GET/POST /api/categories` — list/create categories
 - `PATCH/DELETE /api/categories/:id` — single category CRUD
-- `POST /api/orders` — create order (with digital delivery)
+- `POST /api/orders` — create order
 - `GET /api/orders` — list orders (admin)
 - `GET /api/orders/:id` — single order
-- `PATCH /api/orders/:id/status` — update order status
-- `POST /api/orders/:id/confirm-payment` — confirm payment
-- `GET /api/orders/user/:firebaseUid` — user's orders
-- `GET /api/orders/:id/delivery` — get delivery items
-- `POST /api/coupons/validate` — validate coupon code
-- `GET/POST /api/coupons` — list/create coupons
+- `PATCH /api/orders/:id` — update order status
+- `POST /api/orders/:id/confirm-payment` — confirm payment + deliver codes
+- `GET /api/user/orders` — user's orders by firebaseUid
+- `GET /api/user/orders/:id/delivery` — delivery data (codes) for paid order
+- `POST /api/orders/:id/upload-receipt` — upload receipt image + AI verification
+- `POST /api/orders/:id/admin-confirm` — admin confirm/reject payment (requires admin auth)
+- `GET/POST/PATCH/DELETE /api/coupons` — coupons CRUD (requires admin auth)
+- `POST /api/coupons/validate` — validate coupon code (public)
+- `GET /api/loyalty/:firebaseUid` — loyalty points balance + history
+- `POST /api/ai/generate-product-description` — AI product description generation
 - `GET /api/admin/stats` — admin dashboard stats
-- `GET/PUT /api/homepage-sections` — homepage sections CRUD
+- `GET/PUT /api/homepage/sections` — homepage sections management
 - `GET/POST /api/popups` — popups management
-- `PATCH /api/popups/:id` — update popup
 - `GET /api/inventory/:productId` — inventory items
 - `POST /api/inventory/:productId` — add inventory items
 - `POST /api/admin-auth/register` — register admin (requires invite code)
@@ -127,18 +141,23 @@ All routes mounted at `/api`:
 - `GET/PUT /api/admin-settings/:key` — get/update admin settings
 - `GET /api/admin-activity-logs` — list admin activity logs
 - `POST /api/seed` — seed demo data
+- `GET /api/uploads/*` — static file serving for uploaded receipts
 
 ## Database Schema
 
-Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`, `admin_users`, `site_content`, `admin_activity_logs`, `admin_settings`
+Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`, `admin_users`, `site_content`, `admin_activity_logs`, `admin_settings`, `loyalty_points`
+
+Key product columns: `deliveryMode` (multi_code/single_code/whatsapp_manual), `singleCodeValue`, `featuresAr`, `featuresEn`, `packages` (JSONB)
+Key order columns: `receiptImage`, `receiptStatus` (pending/verified/rejected), `aiVerificationResult` (JSONB), `loyaltyPointsEarned`
 
 ## Key Configuration
 
 - **Firebase**: apiKey `AIzaSyAQiWBcLbBVneGBSRmoTsFSsYJWUWX9_gQ`, project `dukani-emq1m`
-- **Admin check**: `email.includes('@newflix.com') || email === 'admin@admin.com'`
+- **BenefitPay**: Name: ESMAIL ALMURISI, Number: 34490039
 - **WhatsApp**: `https://wa.me/97337127483`
 - **Instagram**: `@NEWFLIX.ADS`
 - **Coupon codes**: `WELCOME10` (10%), `NEWFLIX20` (20%)
+- **Loyalty**: 1 BHD = 1 point, auto-awarded on payment confirmation
 - **Default language**: Arabic (RTL)
 - **Default theme**: Light
 

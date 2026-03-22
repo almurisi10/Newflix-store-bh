@@ -8,10 +8,11 @@ import {
   AddInventoryItemsParams,
   AddInventoryItemsBody,
 } from "@workspace/api-zod";
+import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
 
 const router: IRouter = Router();
 
-router.get("/inventory/:productId", async (req, res): Promise<void> => {
+router.get("/inventory/:productId", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = ListInventoryItemsParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -27,7 +28,7 @@ router.get("/inventory/:productId", async (req, res): Promise<void> => {
   res.json(ListInventoryItemsResponse.parse(items));
 });
 
-router.post("/inventory/:productId", async (req, res): Promise<void> => {
+router.post("/inventory/:productId", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const params = AddInventoryItemsParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
