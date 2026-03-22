@@ -48,13 +48,14 @@ artifacts-monorepo/
 
 ## Admin System
 
-- **Unified Auth**: `/login` page has Customer/Admin tab switcher — admin login merged into main auth page
-- **Old `/Newflix-login` route**: Redirects to `/login` automatically
-- **Firebase Admin Auth**: Admin accounts linked to Firebase via `firebaseUid`, supports Google sign-in
+- **Customer Auth**: `/login` — customer-only page with Google sign-in + email/password (Firebase)
+- **Admin Auth**: `/newflix-admin` — separate admin login page, email/password only (no Google sign-in), Firebase-connected
+- **Old `/Newflix-login` route**: Redirects to `/newflix-admin` automatically
 - **Invite Code**: Server-validated via `ADMIN_INVITE_CODE` env var (`Almurisi34490039@`)
-- **Admin Auth**: bcryptjs password hashing + Firebase ID token login, JWT tokens (7-day expiry), admin middleware (`requireAdmin`)
+- **Admin Auth Backend**: bcryptjs password hashing + Firebase ID token login, JWT tokens (7-day expiry), admin middleware (`requireAdmin`)
 - **Role Assignment**: New admins always get `admin` role (server-enforced, no client-side role selection)
 - **Hidden Admin**: Super admin can toggle `hidden` flag on admin accounts via `PATCH /admin-auth/toggle-hidden/:id`
+- **Delivery Code Management**: Admin can hide/show delivery codes per order via toggle button in order details
 - **Signup Toggle**: Admin can disable new admin registration from Settings
 - **CMS**: `site_content` table stores all editable text (AR/EN) with content keys
 - **Inline Editing**: When admin logged in, toggle "Edit Mode" to see pencil icons on editable text
@@ -65,7 +66,7 @@ artifacts-monorepo/
 
 - **Overview**: Revenue, orders count, products count, low stock alerts, recent orders
 - **Products**: Full CRUD with AI description generation, delivery mode (multi_code/single_code/whatsapp_manual), packages/tiers, inventory code management
-- **Orders**: Table with receipt viewer, AI verification results, confirm/reject payment actions
+- **Orders**: Table with receipt viewer (fixed URL), AI verification results, confirm/reject payment actions, delivery code management (hide/show codes)
 - **Coupons**: Full CRUD (create/toggle/delete) with percentage/fixed discount types
 - **Users**: Customer list derived from orders with total spent and order count
 - **Categories**: Full CRUD with emoji picker for category icons
@@ -100,7 +101,7 @@ artifacts-monorepo/
 /product/:id       → Product detail page
 /cart              → Cart with coupon support
 /checkout          → BenefitPay payment + receipt upload
-/login             → Unified auth (customer + admin tabs) with Google sign-in
+/login             → Customer auth (Google sign-in + email/password)
 /account           → Account hub
 /account/orders    → My Orders with delivery codes
 /account/wishlist  → Wishlist
@@ -109,7 +110,9 @@ artifacts-monorepo/
 /contact           → Contact page
 /faq               → FAQ page
 /terms             → Terms page
-/Newflix-login      → Redirects to /login
+/newflix-admin      → Admin login (email/password, no Google)
+/newflix-admin/register → Admin registration with invite code
+/Newflix-login      → Redirects to /newflix-admin
 /admin             → Admin dashboard
 ```
 
@@ -157,6 +160,8 @@ All routes mounted at `/api`:
 - `GET/PUT /api/admin-settings/:key` — get/update admin settings
 - `GET /api/admin-activity-logs` — list admin activity logs
 - `POST /api/seed` — seed demo data
+- `GET /api/orders/:id/delivery-codes` — admin: list delivery codes for an order
+- `PATCH /api/orders/:orderId/delivery-codes/:codeId/toggle-hidden` — admin: toggle code visibility
 - `GET /api/uploads/*` — static file serving for uploaded receipts
 
 ## Database Schema
@@ -167,6 +172,7 @@ Key product columns: `deliveryMode` (multi_code/single_code/whatsapp_manual), `s
 Key order columns: `orderNumber` (unique, format: `NEWFLIX-YYYYMMDD-XXXX`), `receiptImage`, `receiptStatus` (pending/verified/rejected), `aiVerificationResult` (JSONB), `loyaltyPointsEarned`
 Key wallet columns: `firebaseUid` (unique), `balance` (real, default 0)
 Key admin_users columns: `firebaseUid` (Firebase UID link), `hidden` (boolean, hide from admin list)
+Key inventory_items columns: `hidden` (boolean, admin can hide code from customer view)
 
 ## WhatsApp & Invoice
 

@@ -747,7 +747,7 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
               {selectedOrder.receiptImage && (
                 <div>
                   <p className="text-sm font-medium mb-2">{lang === 'ar' ? 'إيصال الدفع:' : 'Payment Receipt:'}</p>
-                  <img src={selectedOrder.receiptImage} alt="Receipt" className="max-w-full max-h-96 rounded-xl border border-border" />
+                  <img src={selectedOrder.receiptImage.startsWith('http') ? selectedOrder.receiptImage : `${import.meta.env.BASE_URL.replace(/\/$/, '')}${selectedOrder.receiptImage}`} alt="Receipt" className="max-w-full max-h-96 rounded-xl border border-border" />
                 </div>
               )}
               {selectedOrder.aiVerificationResult && (
@@ -774,6 +774,9 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
                     <X className="w-4 h-4" /> {confirming === `${selectedOrder.id}-reject` ? '...' : (lang === 'ar' ? 'رفض الطلب' : 'Reject')}
                   </button>
                 </div>
+              )}
+              {(selectedOrder.status === 'paid' || selectedOrder.status === 'delivered') && (
+                <OrderDeliveryCodes orderId={selectedOrder.id} token={token} lang={lang} />
               )}
             </div>
           </div>
@@ -805,6 +808,56 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderDeliveryCodes({ orderId, token, lang }: { orderId: number; token: string | null; lang: string }) {
+  const { data: codes, isLoading, refetch } = useQuery({
+    queryKey: ['admin-delivery-codes', orderId],
+    queryFn: async () => {
+      const res = await adminFetch(`${API}/orders/${orderId}/delivery-codes`, token);
+      return res.json();
+    },
+  });
+  const [toggling, setToggling] = useState<number | null>(null);
+
+  const toggleHidden = async (codeId: number) => {
+    setToggling(codeId);
+    try {
+      await adminFetch(`${API}/orders/${orderId}/delivery-codes/${codeId}/toggle-hidden`, token, { method: 'PATCH' });
+      toast.success(lang === 'ar' ? 'تم تحديث حالة الكود' : 'Code status updated');
+      refetch();
+    } catch { toast.error(lang === 'ar' ? 'خطأ' : 'Error'); }
+    setToggling(null);
+  };
+
+  if (isLoading) return <div className="animate-pulse h-16 bg-muted rounded-xl" />;
+  if (!codes || codes.length === 0) return null;
+
+  return (
+    <div className="bg-muted/30 rounded-xl p-4">
+      <p className="text-sm font-medium mb-3">{lang === 'ar' ? 'أكواد التسليم:' : 'Delivery Codes:'}</p>
+      <div className="space-y-2">
+        {codes.map((code: any, idx: number) => (
+          <div key={idx} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs ${code.hidden ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'}`}>
+            <div className="flex-1 min-w-0">
+              <p className="text-muted-foreground">{lang === 'ar' ? code.titleAr : code.titleEn}</p>
+              <code className="font-mono text-sm break-all">{code.data}</code>
+              {code.hidden && <span className="text-red-500 font-medium ms-2">{lang === 'ar' ? '(مخفي عن العميل)' : '(Hidden from customer)'}</span>}
+            </div>
+            {code.id !== null && (
+              <button
+                onClick={() => toggleHidden(code.id)}
+                disabled={toggling === code.id}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${code.hidden ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-500 text-white hover:bg-red-600'} disabled:opacity-50`}
+              >
+                {toggling === code.id ? '...' : code.hidden ? (lang === 'ar' ? 'إظهار' : 'Show') : (lang === 'ar' ? 'إخفاء' : 'Hide')}
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

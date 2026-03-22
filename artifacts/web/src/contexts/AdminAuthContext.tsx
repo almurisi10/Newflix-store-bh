@@ -58,25 +58,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }, [token, logout]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      if (firebaseUser && !token) {
-        try {
-          const idToken = await firebaseUser.getIdToken();
-          const res = await fetch(`${API_BASE}/admin-auth/firebase-login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setToken(data.token);
-            setAdmin(data.admin);
-            localStorage.setItem('admin_token', data.token);
-          }
-        } catch {
-        }
-      }
-      if (!firebaseUser && !token) {
+    const unsub = onAuthStateChanged(auth, async (_firebaseUser: User | null) => {
+      if (!_firebaseUser && !token) {
         setLoading(false);
       }
     });

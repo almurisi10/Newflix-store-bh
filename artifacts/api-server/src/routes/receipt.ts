@@ -26,6 +26,10 @@ router.post("/orders/:id/upload-receipt", upload.single("receipt"), async (req, 
   }
 
   const firebaseUid = req.headers["x-firebase-uid"] as string;
+  if (!firebaseUid) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
 
   const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
   if (!order) {
@@ -33,7 +37,7 @@ router.post("/orders/:id/upload-receipt", upload.single("receipt"), async (req, 
     return;
   }
 
-  if (firebaseUid && order.firebaseUid !== firebaseUid) {
+  if (order.firebaseUid !== firebaseUid) {
     res.status(403).json({ error: "Not authorized" });
     return;
   }
@@ -234,6 +238,75 @@ router.post("/orders/:id/admin-confirm", requireAdmin as any, async (req: AdminR
   } else {
     res.status(400).json({ error: "Invalid action" });
   }
+});
+
+router.get("/orders/:id/delivery-codes", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
+  const orderId = parseInt(req.params.id);
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  const codes: any[] = [];
+  const items = order.items as any[];
+
+  for (const item of items) {
+    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
+    if (!product) continue;
+
+    if (product.deliveryMode === "multi_code") {
+      const inventoryItems = await db.select().from(inventoryItemsTable)
+        .where(and(
+          eq(inventoryItemsTable.productId, product.id),
+          eq(inventoryItemsTable.orderId, order.id),
+          eq(inventoryItemsTable.status, "delivered")
+        ));
+
+      for (const inv of inventoryItems) {
+        codes.push({
+          id: inv.id,
+          productId: product.id,
+          titleAr: product.titleAr,
+          titleEn: product.titleEn,
+          data: inv.data,
+          hidden: inv.hidden,
+          deliveredAt: inv.deliveredAt?.toISOString(),
+        });
+      }
+    } else if (product.deliveryMode === "single_code" && product.singleCodeValue) {
+      codes.push({
+        id: null,
+        productId: product.id,
+        titleAr: product.titleAr,
+        titleEn: product.titleEn,
+        data: product.singleCodeValue,
+        hidden: false,
+        type: "single_code",
+      });
+    }
+  }
+
+  res.json(codes);
+});
+
+router.patch("/orders/:orderId/delivery-codes/:codeId/toggle-hidden", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
+  const orderId = parseInt(req.params.orderId);
+  const codeId = parseInt(req.params.codeId);
+  const [item] = await db.select().from(inventoryItemsTable).where(
+    and(eq(inventoryItemsTable.id, codeId), eq(inventoryItemsTable.orderId, orderId))
+  );
+  if (!item) {
+    res.status(404).json({ error: "Code not found for this order" });
+    return;
+  }
+
+  const [updated] = await db.update(inventoryItemsTable)
+    .set({ hidden: !item.hidden })
+    .where(eq(inventoryItemsTable.id, codeId))
+    .returning();
+
+  res.json({ success: true, hidden: updated.hidden });
 });
 
 router.get("/loyalty/:firebaseUid", async (req, res): Promise<void> => {

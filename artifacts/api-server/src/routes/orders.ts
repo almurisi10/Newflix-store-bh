@@ -235,13 +235,17 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
     return;
   }
 
-  const requestUid = req.query.firebaseUid as string;
-  if (requestUid && order.firebaseUid !== requestUid) {
+  const requestUid = req.query.firebaseUid as string || req.headers["x-firebase-uid"] as string;
+  if (!requestUid) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  if (order.firebaseUid !== requestUid) {
     res.status(403).json({ error: "Not authorized" });
     return;
   }
 
-  if (order.status !== "paid") {
+  if (order.status !== "paid" && order.status !== "delivered") {
     res.status(403).json({ error: "Order not paid" });
     return;
   }
@@ -285,14 +289,15 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
           titleAr: product.titleAr,
           titleEn: product.titleEn,
           productType: product.productType,
-          deliveryData: inv.data,
+          deliveryData: inv.hidden ? "HIDDEN_BY_ADMIN" : inv.data,
+          hidden: inv.hidden,
           deliveredAt: inv.deliveredAt?.toISOString() ?? new Date().toISOString(),
         });
       }
     }
   }
 
-  res.json(GetOrderDeliveryResponse.parse(deliveryItems));
+  res.json(deliveryItems);
 });
 
 export default router;
