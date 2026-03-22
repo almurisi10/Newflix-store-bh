@@ -126,6 +126,9 @@ All routes mounted at `/api`:
 - `GET/POST/PATCH/DELETE /api/coupons` — coupons CRUD (requires admin auth)
 - `POST /api/coupons/validate` — validate coupon code (public)
 - `GET /api/loyalty/:firebaseUid` — loyalty points balance + history
+- `GET /api/wallet/:firebaseUid` — wallet balance
+- `POST /api/loyalty/redeem` — redeem 50 pts → 2 BHD wallet
+- `POST /api/wallet/generate-coupon` — convert 2 BHD wallet → single-use coupon
 - `POST /api/ai/generate-product-description` — AI product description generation
 - `GET /api/admin/stats` — admin dashboard stats
 - `GET/PUT /api/homepage/sections` — homepage sections management
@@ -145,10 +148,11 @@ All routes mounted at `/api`:
 
 ## Database Schema
 
-Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`, `admin_users`, `site_content`, `admin_activity_logs`, `admin_settings`, `loyalty_points`
+Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`, `admin_users`, `site_content`, `admin_activity_logs`, `admin_settings`, `loyalty_points`, `wallet`
 
 Key product columns: `deliveryMode` (multi_code/single_code/whatsapp_manual), `singleCodeValue`, `featuresAr`, `featuresEn`, `packages` (JSONB)
-Key order columns: `receiptImage`, `receiptStatus` (pending/verified/rejected), `aiVerificationResult` (JSONB), `loyaltyPointsEarned`
+Key order columns: `orderNumber` (unique, format: `NEWFLIX-YYYYMMDD-XXXX`), `receiptImage`, `receiptStatus` (pending/verified/rejected), `aiVerificationResult` (JSONB), `loyaltyPointsEarned`
+Key wallet columns: `firebaseUid` (unique), `balance` (real, default 0)
 
 ## Key Configuration
 
@@ -157,7 +161,8 @@ Key order columns: `receiptImage`, `receiptStatus` (pending/verified/rejected), 
 - **WhatsApp**: `https://wa.me/97337127483`
 - **Instagram**: `@NEWFLIX.ADS`
 - **Coupon codes**: `WELCOME10` (10%), `NEWFLIX20` (20%)
-- **Loyalty**: 1 BHD = 1 point, auto-awarded on payment confirmation
+- **Loyalty**: 1 BHD = 1 point, auto-awarded on payment confirmation. 50 pts → 2 BHD wallet → single-use coupon
+- **Wallet**: Per-user wallet balance, redeemed from loyalty points, used to generate coupons
 - **Default language**: Arabic (RTL)
 - **Default theme**: Light
 

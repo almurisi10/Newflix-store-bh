@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
+  orderNumber: text("order_number").unique(),
   firebaseUid: text("firebase_uid").notNull(),
   customerName: text("customer_name").notNull(),
   customerEmail: text("customer_email").notNull(),

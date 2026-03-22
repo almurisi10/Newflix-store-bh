@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
-import { ShoppingBag, User, Menu, ChevronDown, LogOut, X, Home, Store, Info, Phone, Package, Settings, Heart, Shield } from 'lucide-react';
+import { ShoppingBag, User, Menu, ChevronDown, LogOut, X, Home, Store, Info, Phone, Package, Settings, Heart, Shield, Coins } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
@@ -126,27 +126,27 @@ export function Navbar() {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
             />
             <motion.div
-              initial={{ x: lang === 'ar' ? '100%' : '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: lang === 'ar' ? '100%' : '-100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className={`fixed top-0 bottom-0 ${lang === 'ar' ? 'right-0' : 'left-0'} w-[85%] max-w-sm z-50 flex flex-col lg:hidden overflow-hidden`}
+              initial={{ y: '-100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '-100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 left-0 right-0 z-50 lg:hidden max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex flex-col h-full bg-background">
-                <div className="relative bg-gradient-to-br from-primary via-primary/90 to-secondary p-6 pb-10">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+              <div className="bg-background rounded-b-3xl shadow-2xl border-b border-border">
+                <div className="relative bg-gradient-to-br from-primary via-primary/90 to-[#1FB5AC] p-5 pb-8">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+                  <div className="absolute bottom-0 left-0 w-28 h-28 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
 
-                  <div className="relative z-10 flex items-center justify-between mb-6">
+                  <div className="relative z-10 flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
                         <span className="text-white font-bold text-lg">N</span>
                       </div>
                       <span className="font-heading font-bold text-white text-lg">
-                        {lang === 'ar' ? 'نيوفلكس' : 'NEWFLIX'}
+                        {lang === 'ar' ? 'نيوفلكس ستور' : 'NEWFLIX STORE'}
                       </span>
                     </div>
-                    <button onClick={close} className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors">
+                    <button onClick={close} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-colors">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
@@ -166,19 +166,15 @@ export function Navbar() {
                       <p className="text-white/80 text-sm">{lang === 'ar' ? 'مرحباً بك في نيوفلكس ستور' : 'Welcome to NEWFLIX STORE'}</p>
                     </div>
                   )}
-
-                  <svg className="absolute bottom-0 left-0 right-0 w-full" viewBox="0 0 400 30" preserveAspectRatio="none" style={{ transform: 'translateY(1px)' }}>
-                    <path d="M0,30 C100,0 300,0 400,30 L400,30 L0,30 Z" className="fill-background" />
-                  </svg>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6">
-                  <div className="flex items-center gap-3 mb-5">
+                <div className="px-4 pt-4 pb-5">
+                  <div className="flex items-center gap-3 mb-4">
                     <ThemeToggle />
                     <LanguageSwitcher />
                   </div>
 
-                  <nav className="space-y-1 mb-6">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     {[
                       { href: '/', icon: Home, label: t('home') },
                       { href: '/shop', icon: Store, label: t('shop') },
@@ -186,74 +182,75 @@ export function Navbar() {
                       { href: '/contact', icon: Phone, label: t('contact') },
                     ].map((link) => (
                       <Link key={link.href} href={link.href} onClick={close}>
-                        <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all ${
+                        <div className={`flex items-center gap-2.5 px-3.5 py-3 rounded-xl transition-all ${
                           location === link.href
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-foreground hover:bg-muted/80'
+                            ? 'bg-primary/10 text-primary font-semibold border border-primary/20'
+                            : 'text-foreground hover:bg-muted/80 border border-transparent'
                         }`}>
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                             location === link.href ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                           }`}>
-                            <link.icon className="w-4.5 h-4.5" />
+                            <link.icon className="w-4 h-4" />
                           </div>
-                          <span className="text-[15px]">{link.label}</span>
+                          <span className="text-sm">{link.label}</span>
                         </div>
                       </Link>
                     ))}
-                  </nav>
+                  </div>
 
                   {user && (
                     <>
-                      <div className="h-px bg-border mx-2 my-3" />
-                      <p className="text-xs text-muted-foreground font-medium px-4 mb-2 uppercase tracking-wider">
+                      <div className="h-px bg-border mx-1 my-3" />
+                      <p className="text-xs text-muted-foreground font-medium px-2 mb-2 uppercase tracking-wider">
                         {lang === 'ar' ? 'حسابي' : 'My Account'}
                       </p>
-                      <nav className="space-y-1 mb-6">
+                      <div className="grid grid-cols-2 gap-2 mb-3">
                         {[
+                          { href: '/account', icon: User, label: lang === 'ar' ? 'حسابي' : 'Account' },
                           { href: '/account/orders', icon: Package, label: lang === 'ar' ? 'طلباتي' : 'My Orders' },
                           { href: '/account/wishlist', icon: Heart, label: lang === 'ar' ? 'المفضلة' : 'Wishlist' },
-                          { href: '/account/settings', icon: Settings, label: lang === 'ar' ? 'إعدادات الحساب' : 'Account Settings' },
+                          { href: '/account/settings', icon: Settings, label: lang === 'ar' ? 'الإعدادات' : 'Settings' },
                         ].map((link) => (
                           <Link key={link.href} href={link.href} onClick={close}>
-                            <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
+                            <div className={`flex items-center gap-2.5 px-3.5 py-3 rounded-xl transition-all ${
                               location === link.href
-                                ? 'bg-primary/10 text-primary font-semibold'
-                                : 'text-foreground hover:bg-muted/80'
+                                ? 'bg-primary/10 text-primary font-semibold border border-primary/20'
+                                : 'text-foreground hover:bg-muted/80 border border-transparent'
                             }`}>
-                              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
-                                <link.icon className="w-4.5 h-4.5" />
+                              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                                <link.icon className="w-4 h-4" />
                               </div>
-                              <span className="text-[15px]">{link.label}</span>
+                              <span className="text-sm">{link.label}</span>
                             </div>
                           </Link>
                         ))}
-                        {(isAdmin || isAdminAuthenticated) && (
-                          <Link href="/admin" onClick={close}>
-                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl text-foreground hover:bg-muted/80 transition-all">
-                              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                                <Shield className="w-4.5 h-4.5" />
-                              </div>
-                              <span className="text-[15px]">{t('dashboard')}</span>
+                      </div>
+                      {(isAdmin || isAdminAuthenticated) && (
+                        <Link href="/admin" onClick={close}>
+                          <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-foreground hover:bg-muted/80 transition-all border border-transparent">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                              <Shield className="w-4 h-4" />
                             </div>
-                          </Link>
-                        )}
-                      </nav>
+                            <span className="text-sm">{t('dashboard')}</span>
+                          </div>
+                        </Link>
+                      )}
                     </>
                   )}
                 </div>
 
-                <div className="p-4 border-t border-border bg-muted/20">
+                <div className="px-4 pb-5">
                   {user ? (
                     <button
                       onClick={() => { signOut(); close(); }}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors"
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
                       {t('logout')}
                     </button>
                   ) : (
                     <Link href="/login" onClick={close} className="block">
-                      <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 text-lg">
+                      <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 text-lg">
                         <User className="w-5 h-5" />
                         {t('login')}
                       </div>

@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
@@ -27,7 +27,9 @@ import AccountSettings from "@/pages/AccountSettings";
 import Wishlist from "@/pages/Wishlist";
 import NotFound from "@/pages/not-found";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Package, Heart, Settings, User } from "lucide-react";
+import { Package, Heart, Settings, User, Coins, Wallet, Gift } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -90,6 +92,28 @@ function StaticPage({ titleAr, titleEn, contentAr, contentEn }: { titleAr: strin
 function Account() {
   const { lang } = useLanguage();
   const { user, signOut } = useAuth();
+  const API = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [generatedCoupon, setGeneratedCoupon] = useState<string | null>(null);
+
+  const { data: loyaltyData, refetch: refetchLoyalty } = useQuery({
+    queryKey: ['loyalty', user?.uid],
+    queryFn: async () => {
+      const res = await fetch(`${API}/loyalty/${user!.uid}`);
+      return res.json();
+    },
+    enabled: !!user?.uid,
+  });
+
+  const { data: walletData, refetch: refetchWallet } = useQuery({
+    queryKey: ['wallet', user?.uid],
+    queryFn: async () => {
+      const res = await fetch(`${API}/wallet/${user!.uid}`);
+      return res.json();
+    },
+    enabled: !!user?.uid,
+  });
 
   if (!user) {
     return (
@@ -105,6 +129,49 @@ function Account() {
       </div>
     );
   }
+
+  const totalPoints = loyaltyData?.totalPoints || 0;
+  const walletBalance = walletData?.balance || 0;
+
+  const handleRedeem = async () => {
+    setRedeemLoading(true);
+    try {
+      const res = await fetch(`${API}/loyalty/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firebaseUid: user.uid }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(lang === 'ar' ? 'تم تحويل 50 نقطة إلى 2 د.ب في المحفظة!' : '50 points redeemed → 2 BHD wallet!');
+        refetchLoyalty();
+        refetchWallet();
+      } else {
+        toast.error(data.error || (lang === 'ar' ? 'خطأ' : 'Error'));
+      }
+    } catch { toast.error(lang === 'ar' ? 'خطأ' : 'Error'); }
+    setRedeemLoading(false);
+  };
+
+  const handleGenerateCoupon = async () => {
+    setCouponLoading(true);
+    try {
+      const res = await fetch(`${API}/wallet/generate-coupon`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firebaseUid: user.uid }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGeneratedCoupon(data.couponCode);
+        toast.success(lang === 'ar' ? 'تم إنشاء كوبون خصم!' : 'Discount coupon generated!');
+        refetchWallet();
+      } else {
+        toast.error(data.error || (lang === 'ar' ? 'خطأ' : 'Error'));
+      }
+    } catch { toast.error(lang === 'ar' ? 'خطأ' : 'Error'); }
+    setCouponLoading(false);
+  };
 
   const menuItems = [
     { href: '/account/orders', Icon: Package, titleAr: 'طلباتي', titleEn: 'My Orders', descAr: 'تتبع حالة طلباتك وسجل المشتريات', descEn: 'Track your orders and purchase history', color: 'bg-blue-500/10 text-blue-500' },
@@ -122,6 +189,75 @@ function Account() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold truncate">{user.displayName || user.email?.split('@')[0]}</h1>
             <p className="text-sm text-muted-foreground truncate dir-ltr text-start">{user.email}</p>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Coins className="w-5 h-5 text-amber-500" />
+            <h2 className="font-bold text-lg">{lang === 'ar' ? 'برنامج الولاء' : 'Loyalty Program'}</h2>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4 text-center">
+              <Coins className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+              <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{totalPoints}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'نقاط الولاء' : 'Loyalty Points'}</p>
+            </div>
+            <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4 text-center">
+              <Wallet className="w-8 h-8 text-green-500 mx-auto mb-2" />
+              <p className="text-3xl font-black text-green-600 dark:text-green-400">{walletBalance.toFixed(1)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'رصيد المحفظة (د.ب)' : 'Wallet (BHD)'}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">{lang === 'ar' ? 'تحويل النقاط → محفظة' : 'Convert Points → Wallet'}</span>
+                <span className="text-xs text-muted-foreground">50 {lang === 'ar' ? 'نقطة' : 'pts'} = 2 {lang === 'ar' ? 'د.ب' : 'BHD'}</span>
+              </div>
+              <div className="w-full bg-amber-200/50 dark:bg-amber-900/30 rounded-full h-2 mb-3">
+                <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (totalPoints / 50) * 100)}%` }} />
+              </div>
+              <button
+                onClick={handleRedeem}
+                disabled={totalPoints < 50 || redeemLoading}
+                className="w-full py-2.5 rounded-xl text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {redeemLoading ? '...' : totalPoints < 50
+                  ? (lang === 'ar' ? `تحتاج ${50 - totalPoints} نقطة إضافية` : `Need ${50 - totalPoints} more points`)
+                  : (lang === 'ar' ? 'تحويل 50 نقطة → 2 د.ب' : 'Redeem 50 pts → 2 BHD')}
+              </button>
+            </div>
+
+            {walletBalance >= 2 && (
+              <div className="bg-white/60 dark:bg-black/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Gift className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">{lang === 'ar' ? 'إنشاء كوبون خصم' : 'Generate Discount Coupon'}</span>
+                </div>
+                {generatedCoupon ? (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">{lang === 'ar' ? 'كود الكوبون:' : 'Coupon Code:'}</p>
+                    <p className="font-mono font-bold text-lg text-green-600 dark:text-green-400 select-all">{generatedCoupon}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'استخدمه في الشراء القادم' : 'Use at your next checkout'}</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleGenerateCoupon}
+                    disabled={couponLoading}
+                    className="w-full py-2.5 rounded-xl text-sm font-medium bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-colors"
+                  >
+                    {couponLoading ? '...' : (lang === 'ar' ? 'إنشاء كوبون 2 د.ب' : 'Generate 2 BHD Coupon')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground text-center">
+              {lang === 'ar' ? 'اكسب 1 نقطة لكل 1 د.ب عند تأكيد الدفع' : 'Earn 1 point per 1 BHD on confirmed payments'}
+            </p>
           </div>
         </div>
 

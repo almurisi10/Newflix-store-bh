@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
-import { db, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable } from "@workspace/db";
+import { db, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable, walletTable, couponsTable } from "@workspace/db";
 import multer from "multer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
@@ -38,8 +38,8 @@ router.post("/orders/:id/upload-receipt", upload.single("receipt"), async (req, 
     return;
   }
 
-  if (order.receiptImage && order.receiptStatus !== "rejected") {
-    res.status(400).json({ error: "Receipt already uploaded" });
+  if (order.receiptImage && order.receiptStatus === "verified") {
+    res.status(400).json({ error: "Receipt already verified" });
     return;
   }
 
@@ -241,6 +241,77 @@ router.get("/loyalty/:firebaseUid", async (req, res): Promise<void> => {
     totalRedeemed,
     history: points,
   });
+});
+
+router.get("/wallet/:firebaseUid", async (req, res): Promise<void> => {
+  const { firebaseUid } = req.params;
+  const [wallet] = await db.select().from(walletTable).where(eq(walletTable.firebaseUid, firebaseUid));
+  res.json({ balance: wallet?.balance || 0 });
+});
+
+router.post("/loyalty/redeem", async (req, res): Promise<void> => {
+  const { firebaseUid } = req.body;
+  if (!firebaseUid) { res.status(400).json({ error: "firebaseUid required" }); return; }
+
+  const points = await db.select().from(loyaltyPointsTable).where(eq(loyaltyPointsTable.firebaseUid, firebaseUid));
+  const totalEarned = points.filter(p => p.type === "earn").reduce((s, p) => s + p.points, 0);
+  const totalRedeemed = points.filter(p => p.type === "redeem").reduce((s, p) => s + Math.abs(p.points), 0);
+  const available = totalEarned - totalRedeemed;
+
+  if (available < 50) {
+    res.status(400).json({ error: "Need at least 50 points", available });
+    return;
+  }
+
+  await db.insert(loyaltyPointsTable).values({
+    firebaseUid,
+    points: -50,
+    type: "redeem",
+    description: "Redeemed 50 points → 2 BHD wallet",
+  });
+
+  const [existing] = await db.select().from(walletTable).where(eq(walletTable.firebaseUid, firebaseUid));
+  if (existing) {
+    await db.update(walletTable).set({ balance: existing.balance + 2 }).where(eq(walletTable.firebaseUid, firebaseUid));
+  } else {
+    await db.insert(walletTable).values({ firebaseUid, balance: 2 });
+  }
+
+  res.json({ success: true, walletBalance: (existing?.balance || 0) + 2, pointsRemaining: available - 50 });
+});
+
+router.post("/wallet/generate-coupon", async (req, res): Promise<void> => {
+  const { firebaseUid } = req.body;
+  if (!firebaseUid) { res.status(400).json({ error: "firebaseUid required" }); return; }
+
+  const [wallet] = await db.select().from(walletTable).where(eq(walletTable.firebaseUid, firebaseUid));
+  if (!wallet || wallet.balance < 2) {
+    res.status(400).json({ error: "Insufficient wallet balance (need 2 BHD)", balance: wallet?.balance || 0 });
+    return;
+  }
+
+  const code = `LOYALTY-${firebaseUid.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+  await db.insert(couponsTable).values({
+    code,
+    descriptionAr: "كوبون ولاء - دينارين",
+    descriptionEn: "Loyalty coupon - 2 BHD",
+    discountType: "fixed",
+    discountValue: 2,
+    maxUses: 1,
+    active: true,
+  });
+
+  await db.update(walletTable).set({ balance: wallet.balance - 2 }).where(eq(walletTable.firebaseUid, firebaseUid));
+
+  await db.insert(loyaltyPointsTable).values({
+    firebaseUid,
+    points: 0,
+    type: "coupon",
+    description: `Generated coupon: ${code}`,
+  });
+
+  res.json({ success: true, couponCode: code, walletBalance: wallet.balance - 2 });
 });
 
 export default router;

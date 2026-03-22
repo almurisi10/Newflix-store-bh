@@ -64,7 +64,11 @@ export default function MyOrders() {
     const formData = new FormData();
     formData.append('receipt', file);
     try {
-      const res = await fetch(`${API}/orders/${orderId}/upload-receipt`, { method: 'POST', body: formData });
+      const res = await fetch(`${API}/orders/${orderId}/upload-receipt`, {
+        method: 'POST',
+        headers: user?.uid ? { 'X-Firebase-UID': user.uid } : {},
+        body: formData,
+      });
       const result = await res.json();
       if (result.verified) {
         toast.success(lang === 'ar' ? 'تم التحقق من الإيصال! ستجد المنتج أدناه.' : 'Receipt verified! Product delivered below.');
@@ -130,7 +134,7 @@ export default function MyOrders() {
                     <div className="flex items-start justify-between gap-4 mb-4">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded-lg">#{order.id}</span>
+                          <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded-lg">{order.orderNumber || `#${order.id}`}</span>
                           <span className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                         </div>
                       </div>
@@ -174,7 +178,7 @@ export default function MyOrders() {
                           </div>
                         ))}
 
-                        {order.status === 'pending' && !order.receiptImage && (
+                        {order.status === 'pending' && (!order.receiptImage || order.receiptStatus === 'rejected') && (
                           <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                             <p className="text-sm font-medium mb-3">{lang === 'ar' ? 'ارفع إيصال الدفع لإتمام الطلب:' : 'Upload payment receipt to complete order:'}</p>
                             <Button

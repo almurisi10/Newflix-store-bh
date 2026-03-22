@@ -97,21 +97,42 @@ router.post("/orders", async (req, res): Promise<void> => {
 
   const total = Math.max(0, subtotal - discountAmount);
 
-  const [order] = await db.insert(ordersTable).values({
-    firebaseUid: parsed.data.firebaseUid,
-    customerName: parsed.data.customerName,
-    customerEmail: parsed.data.customerEmail,
-    customerPhone: parsed.data.customerPhone,
-    items: orderItems,
-    subtotal,
-    discount: discountAmount,
-    total,
-    couponCode: parsed.data.couponCode,
-    status: "pending",
-    notes: parsed.data.notes,
-  }).returning();
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
 
-  res.status(201).json(GetOrderResponse.parse(order));
+  let order: any;
+  let attempts = 0;
+  while (attempts < 5) {
+    try {
+      const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(ordersTable);
+      const seq = String((countResult?.count || 0) + 1 + attempts).padStart(4, '0');
+      const orderNumber = `NEWFLIX-${dateStr}-${seq}`;
+
+      [order] = await db.insert(ordersTable).values({
+        orderNumber,
+        firebaseUid: parsed.data.firebaseUid,
+        customerName: parsed.data.customerName,
+        customerEmail: parsed.data.customerEmail,
+        customerPhone: parsed.data.customerPhone,
+        items: orderItems,
+        subtotal,
+        discount: discountAmount,
+        total,
+        couponCode: parsed.data.couponCode,
+        status: "pending",
+        notes: parsed.data.notes,
+      }).returning();
+      break;
+    } catch (err: any) {
+      attempts++;
+      if (attempts >= 5 || !err?.message?.includes('unique')) {
+        res.status(500).json({ error: "Failed to create order" });
+        return;
+      }
+    }
+  }
+
+  res.status(201).json(order);
 });
 
 router.get("/orders/:id", async (req, res): Promise<void> => {

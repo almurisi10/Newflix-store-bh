@@ -5,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateOrder } from '@workspace/api-client-react';
 import { useState, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
-import { ShieldCheck, CreditCard, Upload, AlertTriangle, CheckCircle, XCircle, Clock, MessageCircle } from 'lucide-react';
+import { ShieldCheck, CreditCard, Upload, AlertTriangle, CheckCircle, XCircle, Clock, MessageCircle, Tag, Loader2 } from 'lucide-react';
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
@@ -18,7 +17,6 @@ export default function Checkout() {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const createOrderMutation = useCreateOrder();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -27,45 +25,90 @@ export default function Checkout() {
     phone: '',
     notes: ''
   });
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
   const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [orderTotal, setOrderTotal] = useState<number>(0);
   const [step, setStep] = useState<'info' | 'payment' | 'receipt' | 'done'>('info');
   const [uploading, setUploading] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (items.length === 0 && !orderId) {
     setLocation('/cart');
     return null;
   }
 
-  const handleCreateOrder = (e: React.FormEvent) => {
+  const discountAmount = couponApplied?.discountAmount || 0;
+  const finalTotal = Math.max(0, subtotal - discountAmount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await fetch(`${API}/coupons/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim(), orderTotal: subtotal }),
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setCouponApplied({ code: couponCode.trim(), discountAmount: data.discountAmount });
+        toast.success(lang === 'ar' ? 'تم تطبيق الكوبون!' : 'Coupon applied!');
+      } else {
+        setCouponError(data.message || (lang === 'ar' ? 'كوبون غير صالح' : 'Invalid coupon'));
+      }
+    } catch {
+      setCouponError(lang === 'ar' ? 'خطأ في التحقق' : 'Verification error');
+    }
+    setCouponLoading(false);
+  };
+
+  const removeCoupon = () => {
+    setCouponApplied(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
+  const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.email) {
       toast.error(lang === 'ar' ? 'يرجى تعبئة الحقول المطلوبة' : 'Please fill required fields');
       return;
     }
 
-    createOrderMutation.mutate({
-      data: {
-        firebaseUid: user?.uid || 'guest_' + Date.now(),
-        customerName: formData.name,
-        customerEmail: formData.email,
-        customerPhone: formData.phone,
-        notes: formData.notes,
-        items: items.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity
-        })),
-        couponCode: null
-      }
-    }, {
-      onSuccess: (data: any) => {
-        setOrderId(data.id);
-        setStep('payment');
-      },
-      onError: () => {
-        toast.error(lang === 'ar' ? 'حدث خطأ' : 'Error creating order');
-      }
-    });
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firebaseUid: user?.uid || 'guest_' + Date.now(),
+          customerName: formData.name,
+          customerEmail: formData.email,
+          customerPhone: formData.phone,
+          notes: formData.notes,
+          items: items.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+          })),
+          couponCode: couponApplied?.code || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setOrderId(data.id);
+      setOrderNumber(data.orderNumber || null);
+      setOrderTotal(data.total);
+      setStep('payment');
+    } catch {
+      toast.error(lang === 'ar' ? 'حدث خطأ' : 'Error creating order');
+    }
+    setIsSubmitting(false);
   };
 
   const handleUploadReceipt = async (file: File) => {
@@ -99,6 +142,15 @@ export default function Checkout() {
     setUploading(false);
   };
 
+  const buildWhatsAppUrl = () => {
+    const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US');
+    const orderItems = items.map(i => `${lang === 'ar' ? i.product.titleAr : i.product.titleEn} x${i.quantity}`).join('\n');
+    const msg = lang === 'ar'
+      ? `🛒 طلب جديد\n\n📋 رقم الطلب: ${orderNumber || orderId}\n👤 الاسم: ${formData.name}\n📧 البريد: ${formData.email}\n📱 الهاتف: ${formData.phone || '-'}\n📅 التاريخ: ${date}\n\n🛍️ المنتجات:\n${orderItems}\n\n💰 المجموع: ${orderTotal} د.ب${couponApplied ? `\n🎟️ كوبون: ${couponApplied.code} (-${discountAmount.toFixed(2)} د.ب)` : ''}`
+      : `🛒 New Order\n\n📋 Order: ${orderNumber || orderId}\n👤 Name: ${formData.name}\n📧 Email: ${formData.email}\n📱 Phone: ${formData.phone || '-'}\n📅 Date: ${date}\n\n🛍️ Items:\n${orderItems}\n\n💰 Total: ${orderTotal} BHD${couponApplied ? `\n🎟️ Coupon: ${couponApplied.code} (-${discountAmount.toFixed(2)} BHD)` : ''}`;
+    return `https://wa.me/97337127483?text=${encodeURIComponent(msg)}`;
+  };
+
   if (step === 'done') {
     return (
       <div className="container mx-auto px-4 py-12 max-w-lg text-center">
@@ -107,7 +159,7 @@ export default function Checkout() {
             <>
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">{lang === 'ar' ? 'تم تأكيد طلبك!' : 'Order Confirmed!'}</h2>
-              <p className="text-muted-foreground mb-6">{lang === 'ar' ? 'تم التحقق من الإيصال وسيتم تسليم المنتج في طلباتي' : 'Receipt verified, product will be delivered to My Orders'}</p>
+              <p className="text-muted-foreground mb-2">{lang === 'ar' ? 'تم التحقق من الإيصال وسيتم تسليم المنتج في طلباتي' : 'Receipt verified, product will be delivered to My Orders'}</p>
             </>
           ) : (
             <>
@@ -119,19 +171,27 @@ export default function Checkout() {
                   {verificationResult.reason}
                 </div>
               )}
-              <a href="https://wa.me/97337127483" target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-green-600 hover:underline">
-                <MessageCircle className="w-4 h-4" />
-                {lang === 'ar' ? 'تواصل معنا عبر الواتساب' : 'Contact us via WhatsApp'}
-              </a>
             </>
           )}
 
+          {orderNumber && (
+            <div className="bg-muted/50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'رقم الطلب' : 'Order Number'}</p>
+              <p className="font-mono font-bold text-lg">{orderNumber}</p>
+            </div>
+          )}
+
           <div className="mt-6 space-y-3">
-            <Button onClick={() => setLocation('/account/orders')} className="w-full rounded-xl">
+            <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer" className="block">
+              <Button className="w-full rounded-xl gap-2 bg-green-600 hover:bg-green-700 text-white">
+                <MessageCircle className="w-5 h-5" />
+                {lang === 'ar' ? 'تواصل عبر الواتساب' : 'Contact via WhatsApp'}
+              </Button>
+            </a>
+            <Button onClick={() => setLocation('/account/orders')} variant="outline" className="w-full rounded-xl">
               {lang === 'ar' ? 'عرض طلباتي' : 'View My Orders'}
             </Button>
-            <Button onClick={() => setLocation('/shop')} variant="outline" className="w-full rounded-xl">
+            <Button onClick={() => setLocation('/shop')} variant="ghost" className="w-full rounded-xl">
               {lang === 'ar' ? 'متابعة التسوق' : 'Continue Shopping'}
             </Button>
           </div>
@@ -144,6 +204,13 @@ export default function Checkout() {
     return (
       <div className="container mx-auto px-4 py-12 max-w-lg">
         <div className="bg-card rounded-3xl border border-border p-6 md:p-8 shadow-xl">
+          {orderNumber && (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 mb-6 text-center">
+              <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'رقم الطلب' : 'Order Number'}</p>
+              <p className="font-mono font-bold text-lg text-primary">{orderNumber}</p>
+            </div>
+          )}
+
           <h2 className="text-2xl font-bold mb-6 text-center">{lang === 'ar' ? 'الدفع عبر BenefitPay' : 'Pay via BenefitPay'}</h2>
 
           <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-2xl p-6 mb-6">
@@ -162,7 +229,7 @@ export default function Checkout() {
               </div>
               <div className="flex justify-between items-center p-3 bg-primary/10 rounded-xl border border-primary/30">
                 <span className="font-medium">{lang === 'ar' ? 'المبلغ المطلوب' : 'Amount Due'}</span>
-                <span className="font-black text-xl text-primary">{subtotal.toFixed(2)} {t('bhd')}</span>
+                <span className="font-black text-xl text-primary">{orderTotal.toFixed(2)} {t('bhd')}</span>
               </div>
             </div>
           </div>
@@ -173,8 +240,8 @@ export default function Checkout() {
               <div className="text-sm text-amber-700 dark:text-amber-400">
                 <p className="font-bold mb-1">{lang === 'ar' ? 'تنبيه مهم:' : 'Important Notice:'}</p>
                 <p>{lang === 'ar'
-                  ? 'يجب أن يكون الاسم والرقم والمبلغ في الإيصال مطابقاً تماماً. يتم التحقق من الإيصال تلقائياً بالذكاء الاصطناعي وسيتم رفض الإيصالات المعدلة أو المزيفة. في حال وجود مشكلة تواصل عبر الواتساب.'
-                  : 'The name, number, and amount on the receipt must match exactly. Receipts are automatically verified by AI and edited/fake receipts will be rejected. Contact WhatsApp for any issues.'}
+                  ? 'يجب أن يكون الاسم والرقم والمبلغ في الإيصال مطابقاً تماماً. يتم التحقق من الإيصال تلقائياً بالذكاء الاصطناعي وسيتم رفض الإيصالات المعدلة أو المزيفة.'
+                  : 'The name, number, and amount on the receipt must match exactly. Receipts are automatically verified by AI and edited/fake receipts will be rejected.'}
                 </p>
               </div>
             </div>
@@ -210,10 +277,10 @@ export default function Checkout() {
             </Button>
 
             <div className="flex justify-center">
-              <a href="https://wa.me/97337127483" target="_blank" rel="noreferrer"
+              <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-2 text-sm text-green-600 hover:underline">
                 <MessageCircle className="w-4 h-4" />
-                {lang === 'ar' ? 'تواصل عبر الواتساب في حال وجود مشكلة' : 'WhatsApp for issues'}
+                {lang === 'ar' ? 'تواصل عبر الواتساب' : 'Contact via WhatsApp'}
               </a>
             </div>
           </div>
@@ -276,8 +343,8 @@ export default function Checkout() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-14 text-lg rounded-xl shadow-xl shadow-primary/20" disabled={createOrderMutation.isPending}>
-              {createOrderMutation.isPending ? (lang === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (lang === 'ar' ? 'متابعة إلى الدفع' : 'Continue to Payment')}
+            <Button type="submit" className="w-full h-14 text-lg rounded-xl shadow-xl shadow-primary/20" disabled={isSubmitting}>
+              {isSubmitting ? (lang === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (lang === 'ar' ? 'متابعة إلى الدفع' : 'Continue to Payment')}
             </Button>
 
             <div className="flex justify-center items-center gap-2 text-sm text-muted-foreground">
@@ -307,10 +374,54 @@ export default function Checkout() {
             ))}
           </div>
 
-          <div className="border-t border-border pt-6 space-y-4">
-            <div className="flex justify-between text-xl font-black pt-2">
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="bg-card rounded-xl border border-border p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">{lang === 'ar' ? 'كوبون خصم' : 'Discount Coupon'}</span>
+              </div>
+              {couponApplied ? (
+                <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">{couponApplied.code}</span>
+                    <span className="text-xs text-green-600">
+                      (-{couponApplied.discountAmount.toFixed(2)} {t('bhd')})
+                    </span>
+                  </div>
+                  <button onClick={removeCoupon} className="text-xs text-destructive hover:underline">
+                    {lang === 'ar' ? 'إزالة' : 'Remove'}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    value={couponCode}
+                    onChange={e => { setCouponCode(e.target.value); setCouponError(''); }}
+                    placeholder={lang === 'ar' ? 'أدخل كود الكوبون' : 'Enter coupon code'}
+                    className="h-10 text-sm"
+                  />
+                  <Button type="button" variant="outline" className="h-10 px-4 rounded-lg shrink-0" onClick={handleApplyCoupon} disabled={couponLoading}>
+                    {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (lang === 'ar' ? 'تطبيق' : 'Apply')}
+                  </Button>
+                </div>
+              )}
+              {couponError && <p className="text-xs text-destructive mt-2">{couponError}</p>}
+            </div>
+
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{lang === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}</span>
+              <span>{subtotal.toFixed(2)} {t('bhd')}</span>
+            </div>
+            {couponApplied && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>{lang === 'ar' ? 'الخصم' : 'Discount'}</span>
+                <span>-{discountAmount.toFixed(2)} {t('bhd')}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xl font-black pt-2 border-t border-border">
               <span>{t('total')}</span>
-              <span className="text-primary">{subtotal.toFixed(2)} {t('bhd')}</span>
+              <span className="text-primary">{finalTotal.toFixed(2)} {t('bhd')}</span>
             </div>
           </div>
         </div>
