@@ -1247,7 +1247,7 @@ components:
           type: integer
         sectionType:
           type: string
-          enum: [hero, categories, bestsellers, new_arrivals, featured, offers, services, banners, testimonials, faq, newsletter]
+          enum: [hero, categories, bestsellers, new_arrivals, featured, offers, services, banners, testimonials, faq, newsletter, slider, features, featured_products, new_products, cta, banner]
         titleAr:
           type: ["string", "null"]
         titleEn:

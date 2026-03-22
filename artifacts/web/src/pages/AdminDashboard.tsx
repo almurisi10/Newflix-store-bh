@@ -10,7 +10,8 @@ import {
   LayoutDashboard, FileText, Settings, Activity, Home, Store,
   MessageSquare, Menu as MenuIcon, LogOut, X, Plus, Trash2, Edit3, Check, Image as ImageIcon,
   ChevronDown, ChevronUp, GripVertical, Eye, EyeOff, Gift, CreditCard, Star,
-  Save, Package, ShoppingCart, DollarSign, Users, Shield, Upload, Tag
+  Save, Package, ShoppingCart, DollarSign, Users, Shield, Upload, Tag,
+  Palette, Type, FolderTree, Layers, Copy
 } from 'lucide-react';
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
@@ -21,14 +22,19 @@ function adminHeaders(token: string | null): Record<string, string> {
   return h;
 }
 
-function adminFetch(url: string, token: string | null, options: RequestInit = {}) {
-  return fetch(url, {
+async function adminFetch(url: string, token: string | null, options: RequestInit = {}) {
+  const res = await fetch(url, {
     ...options,
     headers: { ...adminHeaders(token), ...(options.headers || {}) },
   });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(body || `Request failed: ${res.status}`);
+  }
+  return res;
 }
 
-type AdminTab = 'overview' | 'pages' | 'homepage' | 'content' | 'products' | 'orders' | 'coupons' | 'users' | 'loyalty' | 'payment' | 'activity' | 'settings';
+type AdminTab = 'overview' | 'pages' | 'homepage' | 'content' | 'products' | 'orders' | 'coupons' | 'users' | 'loyalty' | 'payment' | 'activity' | 'settings' | 'categories' | 'design' | 'sliders';
 
 export default function AdminDashboard() {
   const { admin, isAdminAuthenticated, loading: authLoading, logout, token } = useAdminAuth();
@@ -47,140 +53,125 @@ export default function AdminDashboard() {
   const tabs: { key: AdminTab; icon: any; labelAr: string; labelEn: string }[] = [
     { key: 'overview', icon: LayoutDashboard, labelAr: 'نظرة عامة', labelEn: 'Overview' },
     { key: 'products', icon: Package, labelAr: 'المنتجات', labelEn: 'Products' },
+    { key: 'categories', icon: FolderTree, labelAr: 'التصنيفات', labelEn: 'Categories' },
     { key: 'orders', icon: ShoppingCart, labelAr: 'الطلبات', labelEn: 'Orders' },
-    { key: 'coupons', icon: Tag, labelAr: 'كوبونات الخصم', labelEn: 'Coupons' },
+    { key: 'coupons', icon: Tag, labelAr: 'الكوبونات', labelEn: 'Coupons' },
     { key: 'users', icon: Users, labelAr: 'المستخدمين', labelEn: 'Users' },
-    { key: 'loyalty', icon: Star, labelAr: 'نقاط الولاء', labelEn: 'Loyalty Points' },
-    { key: 'payment', icon: CreditCard, labelAr: 'طرق الدفع', labelEn: 'Payment' },
+    { key: 'loyalty', icon: Gift, labelAr: 'الولاء', labelEn: 'Loyalty' },
+    { key: 'payment', icon: CreditCard, labelAr: 'الدفع', labelEn: 'Payment' },
     { key: 'homepage', icon: Home, labelAr: 'الرئيسية', labelEn: 'Homepage' },
-    { key: 'content', icon: MessageSquare, labelAr: 'المحتوى', labelEn: 'CMS' },
-    { key: 'pages', icon: FileText, labelAr: 'الصفحات', labelEn: 'Pages' },
-    { key: 'activity', icon: Activity, labelAr: 'السجل', labelEn: 'Activity' },
+    { key: 'sliders', icon: Layers, labelAr: 'السلايدر', labelEn: 'Sliders' },
+    { key: 'design', icon: Palette, labelAr: 'التنسيق', labelEn: 'Design' },
+    { key: 'content', icon: FileText, labelAr: 'المحتوى', labelEn: 'Content' },
+    { key: 'pages', icon: Store, labelAr: 'الصفحات', labelEn: 'Pages' },
+    { key: 'activity', icon: Activity, labelAr: 'النشاط', labelEn: 'Activity' },
     { key: 'settings', icon: Settings, labelAr: 'الإعدادات', labelEn: 'Settings' },
   ];
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="sticky top-0 z-50 bg-card border-b border-border shadow-sm">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden text-muted-foreground hover:text-foreground">
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Shield className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold text-sm hidden sm:block">{lang === 'ar' ? 'لوحة التحكم' : 'Admin Panel'}</span>
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-md border-b border-border">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 hover:bg-muted rounded-xl"><MenuIcon className="w-5 h-5" /></button>
+              <h1 className="font-bold text-lg">{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground hidden md:block">{admin?.email}</span>
+              <button onClick={logout} className="p-2 hover:bg-destructive/10 text-destructive rounded-xl"><LogOut className="w-4 h-4" /></button>
             </div>
           </div>
-
-          <nav className="hidden lg:flex items-center gap-1 overflow-x-auto">
+          <div className="hidden md:flex gap-1 overflow-x-auto pb-2 no-scrollbar">
             {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeTab === tab.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                <tab.icon className="w-3.5 h-3.5" />
-                {lang === 'ar' ? tab.labelAr : tab.labelEn}
-              </button>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:block">{admin?.email}</span>
-            <button onClick={() => { logout(); navigate('/Newflix-login'); }} className="text-destructive hover:bg-destructive/10 p-2 rounded-lg">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-border bg-card p-2 grid grid-cols-3 gap-1">
-            {tabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); setMobileMenuOpen(false); }}
-                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl text-xs font-medium transition-colors ${
-                  activeTab === tab.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-                }`}
-              >
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
                 <tab.icon className="w-4 h-4" />
                 {lang === 'ar' ? tab.labelAr : tab.labelEn}
               </button>
             ))}
           </div>
-        )}
-      </header>
+        </div>
+      </div>
 
-      <main className="p-4 md:p-6 max-w-7xl mx-auto">
-        {activeTab === 'overview' && <OverviewTab token={token} />}
-        {activeTab === 'pages' && <PagesTab />}
-        {activeTab === 'homepage' && <HomepageTab token={token} lang={lang} />}
-        {activeTab === 'content' && <ContentTab token={token} lang={lang} />}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
+          <div className="absolute start-0 top-0 bottom-0 w-72 bg-card border-e border-border p-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-bold">{lang === 'ar' ? 'القائمة' : 'Menu'}</h2>
+              <button onClick={() => setMobileMenuOpen(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-1">
+              {tabs.map(tab => (
+                <button key={tab.key} onClick={() => { setActiveTab(tab.key); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium ${activeTab === tab.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}>
+                  <tab.icon className="w-4 h-4" />
+                  {lang === 'ar' ? tab.labelAr : tab.labelEn}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-4 py-8">
+        {activeTab === 'overview' && <OverviewTab token={token} lang={lang} />}
         {activeTab === 'products' && <ProductsTab token={token} lang={lang} />}
+        {activeTab === 'categories' && <CategoriesTab token={token} lang={lang} />}
         {activeTab === 'orders' && <OrdersTab token={token} lang={lang} />}
         {activeTab === 'coupons' && <CouponsTab lang={lang} token={token} />}
         {activeTab === 'users' && <UsersTab lang={lang} token={token} />}
         {activeTab === 'loyalty' && <LoyaltyTab lang={lang} />}
         {activeTab === 'payment' && <PaymentTab lang={lang} token={token} />}
+        {activeTab === 'homepage' && <HomepageTab token={token} lang={lang} />}
+        {activeTab === 'sliders' && <SlidersTab token={token} lang={lang} />}
+        {activeTab === 'design' && <DesignTab token={token} lang={lang} />}
+        {activeTab === 'content' && <ContentTab token={token} lang={lang} />}
+        {activeTab === 'pages' && <PagesTab />}
         {activeTab === 'activity' && <ActivityTab token={token} lang={lang} />}
         {activeTab === 'settings' && <SettingsTab token={token} lang={lang} />}
-      </main>
+      </div>
     </div>
   );
 }
 
-function OverviewTab({ token }: { token: string | null }) {
-  const { lang } = useLanguage();
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['admin-stats'],
-    queryFn: async () => { const r = await adminFetch(`${API}/admin/stats`, token); return r.json(); },
+function OverviewTab({ token, lang }: { token: string | null; lang: string }) {
+  const { data: ordersData } = useQuery({
+    queryKey: ['admin-overview-orders'],
+    queryFn: async () => { const r = await adminFetch(`${API}/orders?limit=500`, token); return r.json(); },
   });
-  if (isLoading) return <div className="animate-pulse space-y-4"><div className="h-32 bg-muted rounded-2xl" /><div className="h-32 bg-muted rounded-2xl" /></div>;
+  const { data: productsData } = useQuery({
+    queryKey: ['admin-overview-products'],
+    queryFn: async () => { const r = await adminFetch(`${API}/products?limit=500&admin=true`, token); return r.json(); },
+  });
+
+  const orders = ordersData?.orders || ordersData || [];
+  const products = productsData?.products || [];
+  const revenue = orders.filter((o: any) => o.status === 'paid' || o.status === 'delivered').reduce((sum: number, o: any) => sum + o.total, 0);
+  const lowStock = products.filter((p: any) => p.stock < 3 && p.active).length;
+
+  const stats = [
+    { labelAr: 'الإيرادات', labelEn: 'Revenue', value: `${revenue.toFixed(2)} BHD`, icon: DollarSign, color: 'text-green-500' },
+    { labelAr: 'الطلبات', labelEn: 'Orders', value: orders.length, icon: ShoppingCart, color: 'text-blue-500' },
+    { labelAr: 'المنتجات', labelEn: 'Products', value: products.length, icon: Package, color: 'text-purple-500' },
+    { labelAr: 'مخزون منخفض', labelEn: 'Low Stock', value: lowStock, icon: Shield, color: 'text-amber-500' },
+  ];
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">{lang === 'ar' ? 'نظرة عامة' : 'Overview'}</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: lang === 'ar' ? 'الإيرادات' : 'Revenue', value: `${stats?.totalRevenue || 0} BHD`, icon: DollarSign, color: 'text-green-500' },
-          { label: lang === 'ar' ? 'الطلبات' : 'Orders', value: stats?.totalOrders || 0, icon: ShoppingCart, color: 'text-blue-500' },
-          { label: lang === 'ar' ? 'المنتجات' : 'Products', value: stats?.totalProducts || 0, icon: Package, color: 'text-purple-500' },
-          { label: lang === 'ar' ? 'مخزون منخفض' : 'Low Stock', value: stats?.lowStockProducts || 0, icon: Activity, color: 'text-red-500' },
-        ].map((stat, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat, i) => (
           <div key={i} className="bg-card border border-border rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
+              <span className="text-sm text-muted-foreground">{lang === 'ar' ? stat.labelAr : stat.labelEn}</span>
               <stat.icon className={`w-5 h-5 ${stat.color}`} />
             </div>
             <p className="text-2xl font-bold">{stat.value}</p>
           </div>
         ))}
       </div>
-
-      {stats?.recentOrders && stats.recentOrders.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-bold mb-4">{lang === 'ar' ? 'أحدث الطلبات' : 'Recent Orders'}</h3>
-          <div className="space-y-3">
-            {stats.recentOrders.slice(0, 5).map((order: any) => (
-              <div key={order.id} className="flex justify-between items-center border-b border-border pb-3 last:border-0">
-                <div>
-                  <p className="font-medium">{order.customerName}</p>
-                  <p className="text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div className="text-end">
-                  <p className="font-bold">{order.total} BHD</p>
-                  <StatusBadge status={order.status} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -215,6 +206,8 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
   const [inventoryCodes, setInventoryCodes] = useState('');
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newFeatureAr, setNewFeatureAr] = useState('');
+  const [newFeatureEn, setNewFeatureEn] = useState('');
 
   const resetForm = () => {
     setForm({
@@ -227,6 +220,8 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
     });
     setInventoryCodes('');
     setEditProduct(null);
+    setNewFeatureAr('');
+    setNewFeatureEn('');
   };
 
   const openEdit = (p: any) => {
@@ -282,6 +277,22 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
     setForm(f => ({ ...f, packages: f.packages.filter((_: any, i: number) => i !== idx) }));
   };
 
+  const addFeature = (type: 'ar' | 'en') => {
+    if (type === 'ar' && newFeatureAr.trim()) {
+      setForm(f => ({ ...f, featuresAr: [...f.featuresAr, newFeatureAr.trim()] }));
+      setNewFeatureAr('');
+    }
+    if (type === 'en' && newFeatureEn.trim()) {
+      setForm(f => ({ ...f, featuresEn: [...f.featuresEn, newFeatureEn.trim()] }));
+      setNewFeatureEn('');
+    }
+  };
+
+  const removeFeature = (type: 'ar' | 'en', idx: number) => {
+    if (type === 'ar') setForm(f => ({ ...f, featuresAr: f.featuresAr.filter((_, i) => i !== idx) }));
+    else setForm(f => ({ ...f, featuresEn: f.featuresEn.filter((_, i) => i !== idx) }));
+  };
+
   const saveProduct = async () => {
     if (!form.titleAr || !form.titleEn || !form.price || !form.sku) {
       toast.error(lang === 'ar' ? 'يرجى تعبئة الحقول المطلوبة' : 'Please fill required fields');
@@ -297,6 +308,7 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
     };
 
     try {
+      let productId = editProduct?.id;
       if (editProduct) {
         await adminFetch(`${API}/products/${editProduct.id}`, token, {
           method: 'PATCH',
@@ -308,15 +320,14 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
           body: JSON.stringify(body),
         });
         const newProduct = await res.json();
-        if (inventoryCodes.trim() && form.deliveryMode === 'multi_code') {
-          const codes = inventoryCodes.split('\n').map(c => c.trim()).filter(Boolean);
-          for (const code of codes) {
-            await adminFetch(`${API}/inventory/${newProduct.id}`, token, {
-              method: 'POST',
-              body: JSON.stringify({ items: [code] }),
-            });
-          }
-        }
+        productId = newProduct.id;
+      }
+      if (inventoryCodes.trim() && form.deliveryMode === 'multi_code' && productId) {
+        const codes = inventoryCodes.split('\n').map(c => c.trim()).filter(Boolean);
+        await adminFetch(`${API}/inventory/${productId}`, token, {
+          method: 'POST',
+          body: JSON.stringify({ items: codes }),
+        });
       }
       toast.success(lang === 'ar' ? 'تم الحفظ' : 'Saved');
       resetForm();
@@ -380,6 +391,41 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-2">{lang === 'ar' ? 'المميزات (عربي)' : 'Features (AR)'}</label>
+              <div className="space-y-2 mb-2">
+                {form.featuresAr.map((f, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-1.5">
+                    <Check className="w-3 h-3 text-success shrink-0" />
+                    <span className="flex-1 text-sm" dir="rtl">{f}</span>
+                    <button onClick={() => removeFeature('ar', idx)} className="text-destructive hover:bg-destructive/10 rounded p-0.5"><X className="w-3 h-3" /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={newFeatureAr} onChange={e => setNewFeatureAr(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFeature('ar'))} placeholder={lang === 'ar' ? 'أضف ميزة...' : 'Add feature...'} className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm" dir="rtl" />
+                <button onClick={() => addFeature('ar')} className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm hover:bg-primary/20"><Plus className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">{lang === 'ar' ? 'المميزات (إنجليزي)' : 'Features (EN)'}</label>
+              <div className="space-y-2 mb-2">
+                {form.featuresEn.map((f, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-1.5">
+                    <Check className="w-3 h-3 text-success shrink-0" />
+                    <span className="flex-1 text-sm">{f}</span>
+                    <button onClick={() => removeFeature('en', idx)} className="text-destructive hover:bg-destructive/10 rounded p-0.5"><X className="w-3 h-3" /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={newFeatureEn} onChange={e => setNewFeatureEn(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFeature('en'))} placeholder="Add feature..." className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-sm" />
+                <button onClick={() => addFeature('en')} className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-sm hover:bg-primary/20"><Plus className="w-4 h-4" /></button>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'السعر * (د.ب)' : 'Price * (BHD)'}</label>
@@ -438,9 +484,11 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
             </div>
           )}
 
-          {form.deliveryMode === 'multi_code' && !editProduct && (
+          {form.deliveryMode === 'multi_code' && (
             <div>
-              <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الأكواد (كل كود في سطر)' : 'Codes (one per line)'}</label>
+              <label className="text-sm font-medium block mb-1">
+                {editProduct ? (lang === 'ar' ? 'إضافة أكواد جديدة (كل كود في سطر)' : 'Add New Codes (one per line)') : (lang === 'ar' ? 'الأكواد (كل كود في سطر)' : 'Codes (one per line)')}
+              </label>
               <textarea value={inventoryCodes} onChange={e => setInventoryCodes(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm font-mono" rows={5} placeholder={lang === 'ar' ? 'CODE-1234\nCODE-5678\nCODE-9012' : 'CODE-1234\nCODE-5678\nCODE-9012'} />
               <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'عدد الأكواد: ' : 'Codes count: '}{inventoryCodes.split('\n').filter(Boolean).length}</p>
             </div>
@@ -546,13 +594,120 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
   );
 }
 
+function CategoriesTab({ token, lang }: { token: string | null; lang: string }) {
+  const { data: categories, refetch } = useListCategories();
+  const [showForm, setShowForm] = useState(false);
+  const [editCat, setEditCat] = useState<any>(null);
+  const [form, setForm] = useState({ nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', image: '', icon: '', sortOrder: 0, active: true });
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => { setForm({ nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', image: '', icon: '', sortOrder: 0, active: true }); setEditCat(null); };
+
+  const openEdit = (c: any) => {
+    setForm({ nameAr: c.nameAr, nameEn: c.nameEn, descriptionAr: c.descriptionAr || '', descriptionEn: c.descriptionEn || '', image: c.image || '', icon: c.icon || '', sortOrder: c.sortOrder, active: c.active });
+    setEditCat(c);
+    setShowForm(true);
+  };
+
+  const saveCategory = async () => {
+    if (!form.nameAr || !form.nameEn) { toast.error(lang === 'ar' ? 'الاسم مطلوب' : 'Name required'); return; }
+    setSaving(true);
+    try {
+      if (editCat) {
+        await adminFetch(`${API}/categories/${editCat.id}`, token, { method: 'PATCH', body: JSON.stringify(form) });
+      } else {
+        await adminFetch(`${API}/categories`, token, { method: 'POST', body: JSON.stringify(form) });
+      }
+      toast.success(lang === 'ar' ? 'تم الحفظ' : 'Saved');
+      resetForm(); setShowForm(false); refetch();
+    } catch { toast.error('Error'); }
+    setSaving(false);
+  };
+
+  const deleteCategory = async (id: number) => {
+    if (!confirm(lang === 'ar' ? 'هل أنت متأكد؟' : 'Are you sure?')) return;
+    await adminFetch(`${API}/categories/${id}`, token, { method: 'DELETE' });
+    toast.success(lang === 'ar' ? 'تم الحذف' : 'Deleted');
+    refetch();
+  };
+
+  const emojiOptions = ['🎮', '🎬', '🎵', '📱', '💻', '🎁', '🛍️', '📺', '🎯', '⭐', '🔥', '💎', '🏷️', '📦', '🎲'];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">{lang === 'ar' ? 'التصنيفات' : 'Categories'}</h2>
+        <button onClick={() => { resetForm(); setShowForm(true); }} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium">
+          <Plus className="w-4 h-4" /> {lang === 'ar' ? 'إضافة تصنيف' : 'Add Category'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <h3 className="font-bold">{editCat ? (lang === 'ar' ? 'تعديل التصنيف' : 'Edit Category') : (lang === 'ar' ? 'تصنيف جديد' : 'New Category')}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الاسم بالعربي *' : 'Arabic Name *'}</label><input value={form.nameAr} onChange={e => setForm(f => ({...f, nameAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" dir="rtl" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الاسم بالإنجليزي *' : 'English Name *'}</label><input value={form.nameEn} onChange={e => setForm(f => ({...f, nameEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الوصف (عربي)' : 'Description (AR)'}</label><textarea value={form.descriptionAr} onChange={e => setForm(f => ({...f, descriptionAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm" rows={2} dir="rtl" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الوصف (إنجليزي)' : 'Description (EN)'}</label><textarea value={form.descriptionEn} onChange={e => setForm(f => ({...f, descriptionEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2 text-sm" rows={2} /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'رابط الصورة' : 'Image URL'}</label><input value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" placeholder="https://..." /></div>
+            <div>
+              <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'الأيقونة' : 'Icon'}</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {emojiOptions.map(emoji => (
+                  <button key={emoji} onClick={() => setForm(f => ({...f, icon: emoji}))} className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl border-2 ${form.icon === emoji ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/40'}`}>{emoji}</button>
+                ))}
+              </div>
+              <input value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" placeholder={lang === 'ar' ? 'أو اكتب إيموجي' : 'Or type emoji'} />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({...f, active: e.target.checked}))} className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm">{lang === 'ar' ? 'نشط' : 'Active'}</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-sm">{lang === 'ar' ? 'الترتيب' : 'Order'}</label>
+              <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({...f, sortOrder: parseInt(e.target.value) || 0}))} className="w-20 bg-muted/50 border border-border rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={saveCategory} disabled={saving} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">{saving ? '...' : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+            <button onClick={() => { setShowForm(false); resetForm(); }} className="bg-muted px-6 py-2.5 rounded-xl text-sm">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {(categories || []).map((cat: any) => (
+          <div key={cat.id} className={`bg-card border rounded-2xl p-5 ${cat.active ? 'border-border' : 'border-border opacity-50'}`}>
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl">{cat.icon || '🛍️'}</div>
+                <div>
+                  <h3 className="font-bold">{lang === 'ar' ? cat.nameAr : cat.nameEn}</h3>
+                  <p className="text-xs text-muted-foreground">{lang === 'ar' ? cat.nameEn : cat.nameAr}</p>
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => openEdit(cat)} className="p-1.5 hover:bg-muted rounded-lg"><Edit3 className="w-4 h-4" /></button>
+                <button onClick={() => deleteCategory(cat.id)} className="p-1.5 hover:bg-destructive/10 text-destructive rounded-lg"><Trash2 className="w-4 h-4" /></button>
+              </div>
+            </div>
+            {(cat.descriptionAr || cat.descriptionEn) && (
+              <p className="text-sm text-muted-foreground line-clamp-2">{lang === 'ar' ? cat.descriptionAr : cat.descriptionEn}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
   const { data: orders, refetch } = useQuery({
     queryKey: ['admin-orders'],
-    queryFn: async () => {
-      const res = await adminFetch(`${API}/orders?limit=100`, token);
-      return res.json();
-    },
+    queryFn: async () => { const res = await adminFetch(`${API}/orders?limit=100`, token); return res.json(); },
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -560,13 +715,9 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
   const handleAction = async (orderId: number, action: 'confirm' | 'reject') => {
     setConfirming(`${orderId}-${action}`);
     try {
-      await adminFetch(`${API}/orders/${orderId}/admin-confirm`, token, {
-        method: 'POST',
-        body: JSON.stringify({ action }),
-      });
+      await adminFetch(`${API}/orders/${orderId}/admin-confirm`, token, { method: 'POST', body: JSON.stringify({ action }) });
       toast.success(action === 'confirm' ? (lang === 'ar' ? 'تم تأكيد الطلب' : 'Order confirmed') : (lang === 'ar' ? 'تم رفض الطلب' : 'Order rejected'));
-      refetch();
-      setSelectedOrder(null);
+      refetch(); setSelectedOrder(null);
     } catch { toast.error('Error'); }
     setConfirming(null);
   };
@@ -584,7 +735,6 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
               <h3 className="text-xl font-bold">{lang === 'ar' ? 'تفاصيل الطلب' : 'Order Details'} #{selectedOrder.id}</h3>
               <button onClick={() => setSelectedOrder(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             </div>
-
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-muted-foreground">{lang === 'ar' ? 'العميل:' : 'Customer:'}</span><p className="font-medium">{selectedOrder.customerName}</p></div>
@@ -594,14 +744,12 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
                 <div><span className="text-muted-foreground">{lang === 'ar' ? 'الحالة:' : 'Status:'}</span><p><StatusBadge status={selectedOrder.status} /></p></div>
                 <div><span className="text-muted-foreground">{lang === 'ar' ? 'التاريخ:' : 'Date:'}</span><p className="font-medium">{new Date(selectedOrder.createdAt).toLocaleString()}</p></div>
               </div>
-
               {selectedOrder.receiptImage && (
                 <div>
                   <p className="text-sm font-medium mb-2">{lang === 'ar' ? 'إيصال الدفع:' : 'Payment Receipt:'}</p>
                   <img src={selectedOrder.receiptImage} alt="Receipt" className="max-w-full max-h-96 rounded-xl border border-border" />
                 </div>
               )}
-
               {selectedOrder.aiVerificationResult && (
                 <div className="bg-muted/30 rounded-xl p-4">
                   <p className="text-sm font-medium mb-2">{lang === 'ar' ? 'نتيجة التحقق بالذكاء الاصطناعي:' : 'AI Verification Result:'}</p>
@@ -610,28 +758,19 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
                     <p>{lang === 'ar' ? 'مطابقة الرقم:' : 'Number Match:'} {selectedOrder.aiVerificationResult.numberMatch ? '✅' : '❌'}</p>
                     <p>{lang === 'ar' ? 'مطابقة المبلغ:' : 'Amount Match:'} {selectedOrder.aiVerificationResult.amountMatch ? '✅' : '❌'} {selectedOrder.aiVerificationResult.amountFound || ''}</p>
                     <p>{lang === 'ar' ? 'الثقة:' : 'Confidence:'} {selectedOrder.aiVerificationResult.confidence || 0}%</p>
-                    {selectedOrder.aiVerificationResult.isFraudulent && (
-                      <p className="text-destructive font-medium">{lang === 'ar' ? 'تحذير: يحتمل تزوير!' : 'Warning: Possibly fraudulent!'}</p>
-                    )}
+                    {selectedOrder.aiVerificationResult.isFraudulent && <p className="text-destructive font-medium">{lang === 'ar' ? 'تحذير: يحتمل تزوير!' : 'Warning: Possibly fraudulent!'}</p>}
                     <p>{selectedOrder.aiVerificationResult.reason}</p>
                   </div>
                 </div>
               )}
-
               {selectedOrder.status === 'pending' && (
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => handleAction(selectedOrder.id, 'confirm')}
-                    disabled={confirming !== null}
-                    className="flex-1 bg-green-500 text-white py-2.5 rounded-xl font-medium hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => handleAction(selectedOrder.id, 'confirm')} disabled={confirming !== null}
+                    className="flex-1 bg-green-500 text-white py-2.5 rounded-xl font-medium hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-2">
                     <Check className="w-4 h-4" /> {confirming === `${selectedOrder.id}-confirm` ? '...' : (lang === 'ar' ? 'تأكيد الدفع وتسليم المنتج' : 'Confirm & Deliver')}
                   </button>
-                  <button
-                    onClick={() => handleAction(selectedOrder.id, 'reject')}
-                    disabled={confirming !== null}
-                    className="flex-1 bg-destructive text-white py-2.5 rounded-xl font-medium hover:bg-destructive/90 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
+                  <button onClick={() => handleAction(selectedOrder.id, 'reject')} disabled={confirming !== null}
+                    className="flex-1 bg-destructive text-white py-2.5 rounded-xl font-medium hover:bg-destructive/90 disabled:opacity-50 flex items-center justify-center gap-2">
                     <X className="w-4 h-4" /> {confirming === `${selectedOrder.id}-reject` ? '...' : (lang === 'ar' ? 'رفض الطلب' : 'Reject')}
                   </button>
                 </div>
@@ -644,32 +783,21 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-start px-4 py-3 font-medium">#</th>
-                <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'العميل' : 'Customer'}</th>
-                <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'المجموع' : 'Total'}</th>
-                <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'الإيصال' : 'Receipt'}</th>
-                <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
-                <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b border-border bg-muted/50">
+              <th className="text-start px-4 py-3 font-medium">#</th>
+              <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'العميل' : 'Customer'}</th>
+              <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'المجموع' : 'Total'}</th>
+              <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'الإيصال' : 'Receipt'}</th>
+              <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+              <th className="text-start px-4 py-3 font-medium">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+            </tr></thead>
             <tbody className="divide-y divide-border">
               {ordersList.map((o: any) => (
                 <tr key={o.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedOrder(o)}>
                   <td className="px-4 py-3">{o.id}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{o.customerName}</p>
-                    <p className="text-xs text-muted-foreground">{o.customerEmail}</p>
-                  </td>
+                  <td className="px-4 py-3"><p className="font-medium">{o.customerName}</p><p className="text-xs text-muted-foreground">{o.customerEmail}</p></td>
                   <td className="px-4 py-3 font-bold">{o.total} BHD</td>
-                  <td className="px-4 py-3">
-                    {o.receiptImage ? (
-                      <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">
-                        {o.receiptStatus === 'verified' ? '✅' : o.receiptStatus === 'rejected' ? '❌' : '⏳'}
-                      </span>
-                    ) : <span className="text-xs text-muted-foreground">-</span>}
-                  </td>
+                  <td className="px-4 py-3">{o.receiptImage ? <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full">{o.receiptStatus === 'verified' ? '✅' : o.receiptStatus === 'rejected' ? '❌' : '⏳'}</span> : <span className="text-xs text-muted-foreground">-</span>}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()}</td>
                 </tr>
@@ -697,9 +825,7 @@ function CouponsTab({ lang, token }: { lang: string; token: string | null }) {
     await adminFetch(`${API}/coupons`, token, { method: 'POST', body: JSON.stringify(form) });
     toast.success(lang === 'ar' ? 'تم إنشاء الكوبون' : 'Coupon created');
     setForm({ code: '', descriptionAr: '', descriptionEn: '', discountType: 'percentage', discountValue: '', minOrderAmount: '', maxUses: '', expiresAt: '' });
-    setShowForm(false);
-    refetch();
-    setSaving(false);
+    setShowForm(false); refetch(); setSaving(false);
   };
 
   const toggleActive = async (coupon: any) => {
@@ -710,8 +836,7 @@ function CouponsTab({ lang, token }: { lang: string; token: string | null }) {
   const deleteCoupon = async (id: number) => {
     if (!confirm(lang === 'ar' ? 'هل أنت متأكد؟' : 'Are you sure?')) return;
     await adminFetch(`${API}/coupons/${id}`, token, { method: 'DELETE' });
-    toast.success(lang === 'ar' ? 'تم الحذف' : 'Deleted');
-    refetch();
+    toast.success(lang === 'ar' ? 'تم الحذف' : 'Deleted'); refetch();
   };
 
   return (
@@ -722,13 +847,11 @@ function CouponsTab({ lang, token }: { lang: string; token: string | null }) {
           <Plus className="w-4 h-4" /> {lang === 'ar' ? 'إضافة كوبون' : 'Add Coupon'}
         </button>
       </div>
-
       {showForm && (
         <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'كود الخصم *' : 'Coupon Code *'}</label><input value={form.code} onChange={e => setForm(f => ({...f, code: e.target.value.toUpperCase()}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm font-mono" placeholder="SALE20" /></div>
-            <div>
-              <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'نوع الخصم' : 'Discount Type'}</label>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'نوع الخصم' : 'Discount Type'}</label>
               <select value={form.discountType} onChange={e => setForm(f => ({...f, discountType: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
                 <option value="percentage">{lang === 'ar' ? 'نسبة مئوية %' : 'Percentage %'}</option>
                 <option value="fixed">{lang === 'ar' ? 'مبلغ ثابت (د.ب)' : 'Fixed Amount (BHD)'}</option>
@@ -741,10 +864,9 @@ function CouponsTab({ lang, token }: { lang: string; token: string | null }) {
             <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'وصف (عربي)' : 'Description (AR)'}</label><input value={form.descriptionAr} onChange={e => setForm(f => ({...f, descriptionAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" dir="rtl" /></div>
             <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'وصف (إنجليزي)' : 'Description (EN)'}</label><input value={form.descriptionEn} onChange={e => setForm(f => ({...f, descriptionEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" /></div>
           </div>
-          <button onClick={saveCoupon} disabled={saving} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50">{saving ? '...' : (lang === 'ar' ? 'حفظ الكوبون' : 'Save Coupon')}</button>
+          <button onClick={saveCoupon} disabled={saving} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">{saving ? '...' : (lang === 'ar' ? 'حفظ الكوبون' : 'Save Coupon')}</button>
         </div>
       )}
-
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -838,21 +960,9 @@ function LoyaltyTab({ lang }: { lang: string }) {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-muted/30 rounded-xl p-4 text-center">
-            <Gift className="w-8 h-8 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold">1 BHD</p>
-            <p className="text-xs text-muted-foreground">{lang === 'ar' ? '= 1 نقطة' : '= 1 Point'}</p>
-          </div>
-          <div className="bg-muted/30 rounded-xl p-4 text-center">
-            <Star className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-sm font-medium">{lang === 'ar' ? 'تُحسب تلقائياً' : 'Auto-calculated'}</p>
-            <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'عند تأكيد الدفع' : 'On payment confirmation'}</p>
-          </div>
-          <div className="bg-muted/30 rounded-xl p-4 text-center">
-            <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-            <p className="text-sm font-medium">{lang === 'ar' ? 'مرتبطة بحساب العميل' : 'Tied to customer account'}</p>
-            <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'عبر Firebase UID' : 'Via Firebase UID'}</p>
-          </div>
+          <div className="bg-muted/30 rounded-xl p-4 text-center"><Gift className="w-8 h-8 text-primary mx-auto mb-2" /><p className="text-2xl font-bold">1 BHD</p><p className="text-xs text-muted-foreground">{lang === 'ar' ? '= 1 نقطة' : '= 1 Point'}</p></div>
+          <div className="bg-muted/30 rounded-xl p-4 text-center"><Star className="w-8 h-8 text-amber-500 mx-auto mb-2" /><p className="text-sm font-medium">{lang === 'ar' ? 'تُحسب تلقائياً' : 'Auto-calculated'}</p><p className="text-xs text-muted-foreground">{lang === 'ar' ? 'عند تأكيد الدفع' : 'On payment confirmation'}</p></div>
+          <div className="bg-muted/30 rounded-xl p-4 text-center"><Users className="w-8 h-8 text-blue-500 mx-auto mb-2" /><p className="text-sm font-medium">{lang === 'ar' ? 'مرتبطة بحساب العميل' : 'Tied to customer account'}</p><p className="text-xs text-muted-foreground">{lang === 'ar' ? 'عبر Firebase UID' : 'Via Firebase UID'}</p></div>
         </div>
       </div>
     </div>
@@ -866,64 +976,288 @@ function PaymentTab({ lang, token }: { lang: string; token: string | null }) {
       <div className="bg-card border border-border rounded-2xl p-6">
         <div className="flex items-start gap-4 p-5 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800 mb-4">
           <CreditCard className="w-8 h-8 text-blue-500 shrink-0" />
-          <div>
-            <h3 className="font-bold text-lg">BenefitPay</h3>
-            <p className="text-sm text-muted-foreground mt-1">{lang === 'ar' ? 'الدفع عبر تحويل بنفت باي' : 'Payment via BenefitPay transfer'}</p>
-          </div>
+          <div><h3 className="font-bold text-lg">BenefitPay</h3><p className="text-sm text-muted-foreground mt-1">{lang === 'ar' ? 'الدفع عبر تحويل بنفت باي' : 'Payment via BenefitPay transfer'}</p></div>
         </div>
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-            <span className="text-sm font-medium">{lang === 'ar' ? 'اسم المستلم' : 'Recipient Name'}</span>
-            <span className="font-bold">ESMAIL ALMURISI</span>
-          </div>
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-            <span className="text-sm font-medium">{lang === 'ar' ? 'رقم الحساب' : 'Account Number'}</span>
-            <span className="font-bold font-mono">34490039</span>
-          </div>
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
-            <span className="text-sm font-medium">{lang === 'ar' ? 'التحقق بالذكاء الاصطناعي' : 'AI Verification'}</span>
-            <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-3 py-1 rounded-full font-medium">{lang === 'ar' ? 'مُفعّل' : 'Enabled'}</span>
-          </div>
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"><span className="text-sm font-medium">{lang === 'ar' ? 'اسم المستلم' : 'Recipient Name'}</span><span className="font-bold">ESMAIL ALMURISI</span></div>
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"><span className="text-sm font-medium">{lang === 'ar' ? 'رقم الحساب' : 'Account Number'}</span><span className="font-bold font-mono">34490039</span></div>
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl"><span className="text-sm font-medium">{lang === 'ar' ? 'التحقق بالذكاء الاصطناعي' : 'AI Verification'}</span><span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-3 py-1 rounded-full font-medium">{lang === 'ar' ? 'مُفعّل' : 'Enabled'}</span></div>
         </div>
         <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800">
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            {lang === 'ar'
-              ? '⚠️ يتم التحقق من كل إيصال تلقائياً بالذكاء الاصطناعي للتأكد من مطابقة الاسم والرقم والمبلغ. الإيصالات المعدلة أو المزيفة يتم رفضها تلقائياً.'
-              : '⚠️ Every receipt is automatically verified by AI to match name, number, and amount. Edited or fake receipts are automatically rejected.'}
-          </p>
+          <p className="text-sm text-amber-700 dark:text-amber-400">{lang === 'ar' ? '⚠️ يتم التحقق من كل إيصال تلقائياً بالذكاء الاصطناعي للتأكد من مطابقة الاسم والرقم والمبلغ.' : '⚠️ Every receipt is automatically verified by AI to match name, number, and amount.'}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function PagesTab() {
-  const { lang } = useLanguage();
-  const pages = [
-    { nameAr: 'الصفحة الرئيسية', nameEn: 'Homepage', path: '/', sections: ['hero', 'features', 'categories', 'products', 'CTA'] },
-    { nameAr: 'المتجر', nameEn: 'Shop', path: '/shop', sections: ['filters', 'grid', 'search'] },
-    { nameAr: 'من نحن', nameEn: 'About', path: '/about', sections: ['content'] },
-    { nameAr: 'اتصل بنا', nameEn: 'Contact', path: '/contact', sections: ['details'] },
-    { nameAr: 'الأسئلة الشائعة', nameEn: 'FAQ', path: '/faq', sections: ['questions'] },
-    { nameAr: 'الشروط والأحكام', nameEn: 'Terms', path: '/terms', sections: ['content'] },
-  ];
+function SlidersTab({ token, lang }: { token: string | null; lang: string }) {
+  const { data: sections, refetch } = useListHomepageSections();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ titleAr: '', titleEn: '', subtitleAr: '', subtitleEn: '', image: '', link: '' });
+  const [saving, setSaving] = useState(false);
+
+  const sliders = (sections || []).filter((s: any) => s.sectionType === 'slider');
+
+  const addSlider = async () => {
+    if (!form.titleAr && !form.titleEn) { toast.error(lang === 'ar' ? 'العنوان مطلوب' : 'Title required'); return; }
+    setSaving(true);
+    try {
+      const allSections = sections || [];
+      const maxOrder = allSections.reduce((max: number, s: any) => Math.max(max, s.sortOrder), 0);
+      await adminFetch(`${API}/homepage/sections/create`, token, {
+        method: 'POST',
+        body: JSON.stringify({
+          sectionType: 'slider',
+          titleAr: form.titleAr,
+          titleEn: form.titleEn,
+          subtitleAr: form.subtitleAr,
+          subtitleEn: form.subtitleEn,
+          active: true,
+          sortOrder: maxOrder + 1,
+          config: { image: form.image, link: form.link },
+        }),
+      });
+      toast.success(lang === 'ar' ? 'تم الإضافة' : 'Added');
+      setForm({ titleAr: '', titleEn: '', subtitleAr: '', subtitleEn: '', image: '', link: '' });
+      setShowForm(false); refetch();
+    } catch { toast.error('Error'); }
+    setSaving(false);
+  };
+
+  const toggleSlider = async (slider: any) => {
+    const allSections = sections || [];
+    await adminFetch(`${API}/homepage/sections`, token, {
+      method: 'PUT',
+      body: JSON.stringify(allSections.map((s: any) => ({
+        id: s.id, sortOrder: s.sortOrder, active: s.id === slider.id ? !s.active : s.active,
+        titleAr: s.titleAr, titleEn: s.titleEn, subtitleAr: s.subtitleAr, subtitleEn: s.subtitleEn, config: s.config,
+      }))),
+    });
+    refetch();
+  };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">{lang === 'ar' ? 'إدارة الصفحات' : 'Page Management'}</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">{lang === 'ar' ? 'السلايدرات' : 'Sliders'}</h2>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium">
+          <Plus className="w-4 h-4" /> {lang === 'ar' ? 'إضافة سلايدر' : 'Add Slider'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان (عربي)' : 'Title (AR)'}</label><input value={form.titleAr} onChange={e => setForm(f => ({...f, titleAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" dir="rtl" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان (إنجليزي)' : 'Title (EN)'}</label><input value={form.titleEn} onChange={e => setForm(f => ({...f, titleEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان الفرعي (عربي)' : 'Subtitle (AR)'}</label><input value={form.subtitleAr} onChange={e => setForm(f => ({...f, subtitleAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" dir="rtl" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان الفرعي (إنجليزي)' : 'Subtitle (EN)'}</label><input value={form.subtitleEn} onChange={e => setForm(f => ({...f, subtitleEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'رابط الصورة' : 'Image URL'}</label><input value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" placeholder="https://..." /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'المسار / الرابط' : 'Link / Path'}</label><input value={form.link} onChange={e => setForm(f => ({...f, link: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" placeholder="/shop?category=1" /></div>
+          </div>
+          <button onClick={addSlider} disabled={saving} className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">{saving ? '...' : (lang === 'ar' ? 'إضافة' : 'Add')}</button>
+        </div>
+      )}
+
       <div className="grid gap-4">
-        {pages.map((page, i) => (
-          <div key={i} className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold">{lang === 'ar' ? page.nameAr : page.nameEn}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{page.path}</p>
-              <div className="flex gap-1.5 mt-2 flex-wrap">
-                {page.sections.map(s => <span key={s} className="text-xs bg-muted px-2 py-0.5 rounded-full">{s}</span>)}
+        {sliders.map((slider: any) => (
+          <div key={slider.id} className={`bg-card border rounded-2xl overflow-hidden ${slider.active ? 'border-border' : 'border-border opacity-50'}`}>
+            <div className="flex items-center gap-4 p-4">
+              {slider.config?.image && <img src={slider.config.image} alt="" className="w-24 h-16 rounded-xl object-cover" />}
+              <div className="flex-1">
+                <h3 className="font-bold">{lang === 'ar' ? slider.titleAr : slider.titleEn}</h3>
+                {(slider.subtitleAr || slider.subtitleEn) && <p className="text-sm text-muted-foreground">{lang === 'ar' ? slider.subtitleAr : slider.subtitleEn}</p>}
+                {slider.config?.link && <p className="text-xs text-primary font-mono mt-1">{slider.config.link}</p>}
               </div>
+              <button onClick={() => toggleSlider(slider)} className={slider.active ? 'text-green-500' : 'text-muted-foreground'}>
+                {slider.active ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+              </button>
             </div>
-            <a href={page.path} target="_blank" className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20">{lang === 'ar' ? 'عرض' : 'View'}</a>
           </div>
         ))}
+        {sliders.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">{lang === 'ar' ? 'لا يوجد سلايدرات بعد' : 'No sliders yet'}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DesignTab({ token, lang }: { token: string | null; lang: string }) {
+  const [settings, setSettings] = useState({
+    fontFamily: 'Cairo',
+    headingSize: '2rem',
+    bodySize: '1rem',
+    cardSize: 'medium',
+    productsPerRow: 4,
+    categoryColumns: 6,
+    primaryColor: '#173E52',
+    accentColor: '#1FB5AC',
+    cardRadius: '16',
+    productCardHeight: '400',
+    categoryCardHeight: '160',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API}/admin-settings`).then(r => r.json()).then(data => {
+      if (data.design_settings?.value) {
+        setSettings(prev => ({ ...prev, ...data.design_settings.value }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      await adminFetch(`${API}/admin-settings/design_settings`, token, {
+        method: 'PUT',
+        body: JSON.stringify({ value: settings }),
+      });
+      toast.success(lang === 'ar' ? 'تم حفظ التنسيق' : 'Design saved');
+    } catch { toast.error('Error'); }
+    setSaving(false);
+  };
+
+  const arabicFonts = [
+    { name: 'Cairo', label: 'القاهرة - Cairo' },
+    { name: 'Tajawal', label: 'تجوال - Tajawal' },
+    { name: 'Almarai', label: 'المراعي - Almarai' },
+    { name: 'Changa', label: 'شنغا - Changa' },
+    { name: 'El Messiri', label: 'المسيري - El Messiri' },
+    { name: 'Amiri', label: 'أميري - Amiri' },
+    { name: 'Lemonada', label: 'ليمونادا - Lemonada' },
+    { name: 'Readex Pro', label: 'ريدكس برو - Readex Pro' },
+    { name: 'IBM Plex Sans Arabic', label: 'IBM بلكس عربي' },
+    { name: 'Noto Sans Arabic', label: 'نوتو سانس عربي' },
+  ];
+
+  const fontSizes = [
+    { value: '0.75rem', label: '12px' },
+    { value: '0.875rem', label: '14px' },
+    { value: '1rem', label: '16px' },
+    { value: '1.125rem', label: '18px' },
+    { value: '1.25rem', label: '20px' },
+  ];
+
+  const headingSizes = [
+    { value: '1.5rem', label: '24px' },
+    { value: '1.75rem', label: '28px' },
+    { value: '2rem', label: '32px' },
+    { value: '2.5rem', label: '40px' },
+    { value: '3rem', label: '48px' },
+  ];
+
+  const themes = [
+    { name: lang === 'ar' ? 'الافتراضي' : 'Default', primary: '#173E52', accent: '#1FB5AC', bg: '#ffffff', bgDark: '#0a0a0a' },
+    { name: lang === 'ar' ? 'أزرق ملكي' : 'Royal Blue', primary: '#1e3a5f', accent: '#4a90d9', bg: '#f8fafc', bgDark: '#0c1220' },
+    { name: lang === 'ar' ? 'أخضر طبيعي' : 'Nature Green', primary: '#1b4332', accent: '#52b788', bg: '#f0fdf4', bgDark: '#0a1a10' },
+    { name: lang === 'ar' ? 'بنفسجي فاخر' : 'Luxury Purple', primary: '#2d1b69', accent: '#7c3aed', bg: '#faf5ff', bgDark: '#0d0520' },
+    { name: lang === 'ar' ? 'ذهبي أنيق' : 'Elegant Gold', primary: '#1a1a2e', accent: '#d4a373', bg: '#fdf8f0', bgDark: '#0a0a15' },
+    { name: lang === 'ar' ? 'أحمر جريء' : 'Bold Red', primary: '#1a1a2e', accent: '#e63946', bg: '#fff5f5', bgDark: '#0a0a15' },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">{lang === 'ar' ? 'التنسيق والتصميم' : 'Design & Styling'}</h2>
+        <button onClick={saveSettings} disabled={saving} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50">
+          <Save className="w-4 h-4" /> {saving ? '...' : (lang === 'ar' ? 'حفظ التنسيق' : 'Save Design')}
+        </button>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <h3 className="font-bold text-lg flex items-center gap-2"><Type className="w-5 h-5 text-primary" /> {lang === 'ar' ? 'الخطوط' : 'Fonts'}</h3>
+        <div>
+          <label className="text-sm font-medium block mb-2">{lang === 'ar' ? 'الخط العربي' : 'Arabic Font'}</label>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {arabicFonts.map(font => (
+              <button key={font.name} onClick={() => setSettings(s => ({...s, fontFamily: font.name}))}
+                className={`p-3 rounded-xl border-2 text-sm text-center transition-all ${settings.fontFamily === font.name ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}>
+                <span className="block font-bold">{font.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'حجم العناوين' : 'Heading Size'}</label>
+            <select value={settings.headingSize} onChange={e => setSettings(s => ({...s, headingSize: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+              {headingSizes.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'حجم النص' : 'Body Size'}</label>
+            <select value={settings.bodySize} onChange={e => setSettings(s => ({...s, bodySize: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+              {fontSizes.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <h3 className="font-bold text-lg flex items-center gap-2"><Palette className="w-5 h-5 text-primary" /> {lang === 'ar' ? 'السمات والألوان' : 'Themes & Colors'}</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {themes.map(theme => (
+            <button key={theme.name} onClick={() => setSettings(s => ({...s, primaryColor: theme.primary, accentColor: theme.accent}))}
+              className={`p-4 rounded-xl border-2 text-start transition-all ${settings.primaryColor === theme.primary && settings.accentColor === theme.accent ? 'border-primary shadow-md' : 'border-border hover:border-primary/40'}`}>
+              <div className="flex gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: theme.primary }} />
+                <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: theme.accent }} />
+                <div className="w-8 h-8 rounded-lg border border-border" style={{ backgroundColor: theme.bg }} />
+                <div className="w-8 h-8 rounded-lg" style={{ backgroundColor: theme.bgDark }} />
+              </div>
+              <p className="text-sm font-bold">{theme.name}</p>
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'اللون الرئيسي' : 'Primary Color'}</label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={settings.primaryColor} onChange={e => setSettings(s => ({...s, primaryColor: e.target.value}))} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+              <input value={settings.primaryColor} onChange={e => setSettings(s => ({...s, primaryColor: e.target.value}))} className="flex-1 bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm font-mono" />
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'اللون المميز' : 'Accent Color'}</label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={settings.accentColor} onChange={e => setSettings(s => ({...s, accentColor: e.target.value}))} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+              <input value={settings.accentColor} onChange={e => setSettings(s => ({...s, accentColor: e.target.value}))} className="flex-1 bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm font-mono" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+        <h3 className="font-bold text-lg flex items-center gap-2"><Layers className="w-5 h-5 text-primary" /> {lang === 'ar' ? 'أبعاد الأشكال' : 'Layout Dimensions'}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'عدد المنتجات في الصف' : 'Products Per Row'}</label>
+            <select value={settings.productsPerRow} onChange={e => setSettings(s => ({...s, productsPerRow: parseInt(e.target.value)}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+              {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'عدد أعمدة التصنيفات' : 'Category Columns'}</label>
+            <select value={settings.categoryColumns} onChange={e => setSettings(s => ({...s, categoryColumns: parseInt(e.target.value)}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+              {[3, 4, 5, 6, 8].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'استدارة البطاقات (px)' : 'Card Radius (px)'}</label>
+            <input type="number" value={settings.cardRadius} onChange={e => setSettings(s => ({...s, cardRadius: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'ارتفاع بطاقة المنتج (px)' : 'Product Card Height (px)'}</label>
+            <input type="number" value={settings.productCardHeight} onChange={e => setSettings(s => ({...s, productCardHeight: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'ارتفاع بطاقة التصنيف (px)' : 'Category Card Height (px)'}</label>
+            <input type="number" value={settings.categoryCardHeight} onChange={e => setSettings(s => ({...s, categoryCardHeight: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -934,6 +1268,9 @@ function HomepageTab({ token, lang }: { token: string | null; lang: string }) {
   const [localSections, setLocalSections] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newSectionType, setNewSectionType] = useState('banner');
+  const [newSectionForm, setNewSectionForm] = useState({ titleAr: '', titleEn: '', subtitleAr: '', subtitleEn: '', image: '', link: '', couponCode: '', bgColor: '#173E52', columns: 4, limit: 8 });
 
   useEffect(() => {
     if (sections) setLocalSections([...sections].sort((a: any, b: any) => a.sortOrder - b.sortOrder));
@@ -963,14 +1300,82 @@ function HomepageTab({ token, lang }: { token: string | null; lang: string }) {
     setSaving(false);
   };
 
+  const sectionTypes = [
+    { value: 'hero', labelAr: 'البانر الرئيسي', labelEn: 'Hero Banner' },
+    { value: 'features', labelAr: 'المميزات', labelEn: 'Features' },
+    { value: 'categories', labelAr: 'التصنيفات', labelEn: 'Categories' },
+    { value: 'featured_products', labelAr: 'منتجات مميزة', labelEn: 'Featured Products' },
+    { value: 'new_products', labelAr: 'منتجات جديدة', labelEn: 'New Products' },
+    { value: 'cta', labelAr: 'دعوة للعمل / خصم', labelEn: 'CTA / Discount' },
+    { value: 'banner', labelAr: 'بانر ترويجي', labelEn: 'Promo Banner' },
+    { value: 'slider', labelAr: 'سلايدر', labelEn: 'Slider' },
+  ];
+
   if (isLoading) return <div className="animate-pulse h-64 bg-muted rounded-2xl" />;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">{lang === 'ar' ? 'ترتيب الرئيسية' : 'Homepage Sections'}</h2>
-        <button onClick={saveOrder} disabled={saving} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium"><Save className="w-4 h-4" />{saving ? '...' : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowAddSection(!showAddSection)} className="flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-xl text-sm font-medium">
+            <Plus className="w-4 h-4" /> {lang === 'ar' ? 'إضافة قسم' : 'Add Section'}
+          </button>
+          <button onClick={saveOrder} disabled={saving} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium"><Save className="w-4 h-4" />{saving ? '...' : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+        </div>
       </div>
+
+      {showAddSection && (
+        <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'نوع القسم' : 'Section Type'}</label>
+              <select value={newSectionType} onChange={e => setNewSectionType(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+                {sectionTypes.map(st => <option key={st.value} value={st.value}>{lang === 'ar' ? st.labelAr : st.labelEn}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'عدد الأعمدة' : 'Columns'}</label>
+              <select value={newSectionForm.columns} onChange={e => setNewSectionForm(f => ({...f, columns: parseInt(e.target.value)}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm">
+                {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان (عربي)' : 'Title (AR)'}</label><input value={newSectionForm.titleAr} onChange={e => setNewSectionForm(f => ({...f, titleAr: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" dir="rtl" /></div>
+            <div><label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'العنوان (إنجليزي)' : 'Title (EN)'}</label><input value={newSectionForm.titleEn} onChange={e => setNewSectionForm(f => ({...f, titleEn: e.target.value}))} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" /></div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={async () => {
+              setSaving(true);
+              try {
+                const maxOrder = localSections.reduce((max: number, s: any) => Math.max(max, s.sortOrder || 0), 0);
+                await adminFetch(`${API}/homepage/sections/create`, token, {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    sectionType: newSectionType,
+                    titleAr: newSectionForm.titleAr,
+                    titleEn: newSectionForm.titleEn,
+                    subtitleAr: newSectionForm.subtitleAr,
+                    subtitleEn: newSectionForm.subtitleEn,
+                    active: true,
+                    sortOrder: maxOrder + 1,
+                    config: { image: newSectionForm.image, link: newSectionForm.link, couponCode: newSectionForm.couponCode, bgColor: newSectionForm.bgColor, columns: newSectionForm.columns, limit: newSectionForm.limit },
+                  }),
+                });
+                toast.success(lang === 'ar' ? 'تم إضافة القسم' : 'Section added');
+                setNewSectionForm({ titleAr: '', titleEn: '', subtitleAr: '', subtitleEn: '', image: '', link: '', couponCode: '', bgColor: '#173E52', columns: 4, limit: 8 });
+                setShowAddSection(false);
+                refetch();
+              } catch { toast.error('Error'); }
+              setSaving(false);
+            }} disabled={saving} className="bg-primary text-primary-foreground px-6 py-2 rounded-xl text-sm font-medium disabled:opacity-50">
+              {saving ? '...' : (lang === 'ar' ? 'إضافة' : 'Add')}
+            </button>
+            <button onClick={() => setShowAddSection(false)} className="bg-muted px-4 py-2 rounded-xl text-sm">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          </div>
+          <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'القسم الجديد سيُضاف في نهاية القائمة. يمكنك تغيير ترتيبه بعد الإضافة.' : 'New section will be added at the end. You can reorder after adding.'}</p>
+        </div>
+      )}
+
       <div className="space-y-2">
         {localSections.map((section, index) => (
           <div key={section.id} draggable onDragStart={() => setDragIndex(index)} onDragOver={e => { e.preventDefault(); if (dragIndex !== null && dragIndex !== index) { moveSection(dragIndex, index); setDragIndex(index); } }} onDragEnd={() => setDragIndex(null)}
@@ -979,6 +1384,12 @@ function HomepageTab({ token, lang }: { token: string | null; lang: string }) {
             <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{index + 1}</span>
             <div className="flex-1"><p className="font-medium text-sm">{lang === 'ar' ? section.titleAr : section.titleEn}</p><p className="text-xs text-muted-foreground">{section.sectionType}</p></div>
             <button onClick={() => toggleSection(index)} className={section.active ? 'text-green-500' : 'text-muted-foreground'}>{section.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
+            <button onClick={async () => {
+              if (!confirm(lang === 'ar' ? 'حذف هذا القسم؟' : 'Delete this section?')) return;
+              await adminFetch(`${API}/homepage/sections/${section.id}`, token, { method: 'DELETE' });
+              toast.success(lang === 'ar' ? 'تم الحذف' : 'Deleted');
+              refetch();
+            }} className="text-red-500 hover:text-red-700 p-1"><Trash2 className="w-4 h-4" /></button>
             <div className="flex flex-col gap-0.5">
               <button onClick={() => moveSection(index, index - 1)} disabled={index === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
               <button onClick={() => moveSection(index, index + 1)} disabled={index === localSections.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
@@ -1060,6 +1471,38 @@ function ContentTab({ token, lang }: { token: string | null; lang: string }) {
   );
 }
 
+function PagesTab() {
+  const { lang } = useLanguage();
+  const pages = [
+    { nameAr: 'الصفحة الرئيسية', nameEn: 'Homepage', path: '/', sections: ['hero', 'features', 'categories', 'products', 'CTA'] },
+    { nameAr: 'المتجر', nameEn: 'Shop', path: '/shop', sections: ['filters', 'grid', 'search'] },
+    { nameAr: 'من نحن', nameEn: 'About', path: '/about', sections: ['content'] },
+    { nameAr: 'اتصل بنا', nameEn: 'Contact', path: '/contact', sections: ['details'] },
+    { nameAr: 'الأسئلة الشائعة', nameEn: 'FAQ', path: '/faq', sections: ['questions'] },
+    { nameAr: 'الشروط والأحكام', nameEn: 'Terms', path: '/terms', sections: ['content'] },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">{lang === 'ar' ? 'إدارة الصفحات' : 'Page Management'}</h2>
+      <div className="grid gap-4">
+        {pages.map((page, i) => (
+          <div key={i} className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between">
+            <div>
+              <h3 className="font-bold">{lang === 'ar' ? page.nameAr : page.nameEn}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{page.path}</p>
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                {page.sections.map(s => <span key={s} className="text-xs bg-muted px-2 py-0.5 rounded-full">{s}</span>)}
+              </div>
+            </div>
+            <a href={page.path} target="_blank" className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20">{lang === 'ar' ? 'عرض' : 'View'}</a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ActivityTab({ token, lang }: { token: string | null; lang: string }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1097,12 +1540,14 @@ function ActivityTab({ token, lang }: { token: string | null; lang: string }) {
 function SettingsTab({ token, lang }: { token: string | null; lang: string }) {
   const [signupDisabled, setSignupDisabled] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API}/admin-settings`).then(r => r.json()).then(data => {
       if (data.admin_signup_disabled?.value) setSignupDisabled(true);
       if (data.maintenance_mode?.value) setMaintenanceMode(true);
+      if (data.logo_url?.value) setLogoUrl(data.logo_url.value.url || '');
     }).catch(() => {});
   }, []);
 
@@ -1134,6 +1579,18 @@ function SettingsTab({ token, lang }: { token: string | null; lang: string }) {
           <div><p className="font-medium">{lang === 'ar' ? 'وضع الصيانة' : 'Maintenance Mode'}</p><p className="text-sm text-muted-foreground">{lang === 'ar' ? 'إظهار صفحة صيانة' : 'Show maintenance page'}</p></div>
           <ToggleSwitch enabled={maintenanceMode} onToggle={() => { const v = !maintenanceMode; setMaintenanceMode(v); updateSetting('maintenance_mode', { value: v }); }} />
         </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <h3 className="font-bold">{lang === 'ar' ? 'الشعار' : 'Logo'}</h3>
+        <div>
+          <label className="text-sm font-medium block mb-1">{lang === 'ar' ? 'رابط الشعار' : 'Logo URL'}</label>
+          <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className="w-full bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-sm" placeholder="https://..." />
+        </div>
+        {logoUrl && <img src={logoUrl} alt="Logo" className="h-16 object-contain rounded-lg border border-border p-2" />}
+        <button onClick={() => updateSetting('logo_url', { url: logoUrl })} disabled={saving === 'logo_url'} className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50">
+          {saving === 'logo_url' ? '...' : (lang === 'ar' ? 'حفظ الشعار' : 'Save Logo')}
+        </button>
       </div>
     </div>
   );

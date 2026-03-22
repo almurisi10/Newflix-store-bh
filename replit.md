@@ -64,13 +64,16 @@ artifacts-monorepo/
 - **Orders**: Table with receipt viewer, AI verification results, confirm/reject payment actions
 - **Coupons**: Full CRUD (create/toggle/delete) with percentage/fixed discount types
 - **Users**: Customer list derived from orders with total spent and order count
+- **Categories**: Full CRUD with emoji picker for category icons
 - **Loyalty Points**: Display loyalty system info (1 BHD = 1 point, auto-awarded)
 - **Payment**: BenefitPay configuration display (name: ESMAIL ALMURISI, number: 34490039)
-- **Homepage**: Drag-and-drop section ordering with visibility toggles
+- **Sliders**: Manage hero slider images with title/subtitle/link/image URL
+- **Homepage**: Drag-and-drop section ordering with add/delete/visibility toggles (section types: hero, features, categories, featured_products, new_products, cta, banner, slider)
+- **Design**: 10 Arabic fonts, 6 color themes, hero/card/grid dimension controls
 - **Content (CMS)**: Inline text editing for all site content (AR/EN)
 - **Pages**: Page overview with sections breakdown
 - **Activity**: Admin activity log
-- **Settings**: Toggle admin signup, maintenance mode
+- **Settings**: Toggle admin signup, maintenance mode, logo URL
 
 ## Payment & Delivery Flow
 
@@ -131,7 +134,9 @@ All routes mounted at `/api`:
 - `POST /api/wallet/generate-coupon` — convert 2 BHD wallet → single-use coupon
 - `POST /api/ai/generate-product-description` — AI product description generation
 - `GET /api/admin/stats` — admin dashboard stats
-- `GET/PUT /api/homepage/sections` — homepage sections management
+- `GET/PUT /api/homepage/sections` — homepage sections list/bulk update
+- `POST /api/homepage/sections/create` — create new homepage section
+- `DELETE /api/homepage/sections/:id` — delete homepage section
 - `GET/POST /api/popups` — popups management
 - `GET /api/inventory/:productId` — inventory items
 - `POST /api/inventory/:productId` — add inventory items

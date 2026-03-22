@@ -21,4 +21,10 @@ export const HomepageSectionSectionType = {
   testimonials: "testimonials",
   faq: "faq",
   newsletter: "newsletter",
+  slider: "slider",
+  features: "features",
+  featured_products: "featured_products",
+  new_products: "new_products",
+  cta: "cta",
+  banner: "banner",
 } as const;

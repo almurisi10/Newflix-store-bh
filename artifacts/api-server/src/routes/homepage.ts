@@ -15,6 +15,29 @@ router.get("/homepage/sections", async (_req, res): Promise<void> => {
   res.json(ListHomepageSectionsResponse.parse(sections));
 });
 
+router.post("/homepage/sections/create", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
+  try {
+    const { sectionType, titleAr, titleEn, subtitleAr, subtitleEn, active, sortOrder, config } = req.body;
+    if (!sectionType || typeof sectionType !== 'string') {
+      res.status(400).json({ error: "sectionType is required" });
+      return;
+    }
+    const [section] = await db.insert(homepageSectionsTable).values({
+      sectionType,
+      titleAr: titleAr || null,
+      titleEn: titleEn || null,
+      subtitleAr: subtitleAr || null,
+      subtitleEn: subtitleEn || null,
+      active: active !== false,
+      sortOrder: sortOrder || 0,
+      config: config || {},
+    }).returning();
+    res.status(201).json(section);
+  } catch {
+    res.status(500).json({ error: "Failed to create section" });
+  }
+});
+
 router.put("/homepage/sections", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
   const parsed = UpdateHomepageSectionsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -37,6 +60,24 @@ router.put("/homepage/sections", requireAdmin as any, async (req: AdminRequest, 
 
   const updated = await db.select().from(homepageSectionsTable).orderBy(homepageSectionsTable.sortOrder);
   res.json(UpdateHomepageSectionsResponse.parse(updated));
+});
+
+router.delete("/homepage/sections/:id", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid section ID" });
+      return;
+    }
+    const deleted = await db.delete(homepageSectionsTable).where(eq(homepageSectionsTable.id, id)).returning();
+    if (deleted.length === 0) {
+      res.status(404).json({ error: "Section not found" });
+      return;
+    }
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete section" });
+  }
 });
 
 export default router;
