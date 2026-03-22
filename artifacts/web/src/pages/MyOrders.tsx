@@ -15,6 +15,7 @@ export default function MyOrders() {
   const [, navigate] = useLocation();
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [uploadingOrder, setUploadingOrder] = useState<number | null>(null);
+  const [receiptIssues, setReceiptIssues] = useState<Record<number, any>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: orders, isLoading, refetch } = useQuery({
@@ -77,7 +78,15 @@ export default function MyOrders() {
       } else if (result.details?.duplicateOfOrder) {
         toast.error(lang === 'ar' ? 'تم رفض الإيصال - هذا الإيصال مستخدم سابقاً في طلب آخر' : 'Receipt rejected - this receipt was already used for another order');
       } else {
-        toast.info(lang === 'ar' ? 'تم رفع الإيصال بنجاح - بانتظار تأكيد الإدارة' : 'Receipt uploaded - Awaiting admin confirmation');
+        const d = result.details || {};
+        const hasAiIssues = d.nameMatch === false || d.amountMatch === false || d.dateMatch === false || d.numberMatch === false || d.isFraudulent === true;
+        if (hasAiIssues) {
+          setReceiptIssues(prev => ({ ...prev, [orderId]: d }));
+          setExpandedOrder(orderId);
+          toast.warning(lang === 'ar' ? 'تم رفع الإيصال - توجد ملاحظات تحتاج مراجعة' : 'Receipt uploaded - There are issues that need review');
+        } else {
+          toast.info(lang === 'ar' ? 'تم رفع الإيصال بنجاح - بانتظار تأكيد الإدارة' : 'Receipt uploaded - Awaiting admin confirmation');
+        }
       }
       refetch();
     } catch { toast.error(lang === 'ar' ? 'خطأ في الرفع' : 'Upload error'); }
@@ -128,6 +137,53 @@ export default function MyOrders() {
         `Name: ${user?.displayName || 'N/A'}\n` +
         `Email: ${user?.email || 'N/A'}\n\n` +
         `⚠️ *Issue:*\n[Describe your issue here]`;
+
+    return `https://wa.me/97337127483?text=${encodeURIComponent(message)}`;
+  };
+
+  const buildWhatsAppAiIssueUrl = (order: any, aiDetails: any) => {
+    const orderDate = new Date(order.createdAt);
+    const dateStr = orderDate.toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = orderDate.toLocaleTimeString(lang === 'ar' ? 'ar-BH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const itemsText = (order.items || []).map((item: any, idx: number) => {
+      const title = lang === 'ar' ? item.titleAr : item.titleEn;
+      return `${idx + 1}. ${title} | ${lang === 'ar' ? 'الكمية' : 'Qty'}: ${item.quantity} | ${lang === 'ar' ? 'السعر' : 'Price'}: ${item.price} ${lang === 'ar' ? 'د.ب' : 'BHD'}`;
+    }).join('\n');
+
+    const issues: string[] = [];
+    if (aiDetails.nameMatch === false) issues.push(lang === 'ar' ? `❌ اسم المستلم غير متطابق (الموجود: ${aiDetails.nameFound || 'غير معروف'})` : `❌ Recipient name mismatch (Found: ${aiDetails.nameFound || 'unknown'})`);
+    if (aiDetails.numberMatch === false) issues.push(lang === 'ar' ? '❌ رقم الحساب غير متطابق' : '❌ Account number mismatch');
+    if (aiDetails.amountMatch === false) issues.push(lang === 'ar' ? `❌ المبلغ غير متطابق (الموجود: ${aiDetails.amountFound || 'غير معروف'})` : `❌ Amount mismatch (Found: ${aiDetails.amountFound || 'unknown'})`);
+    if (aiDetails.dateMatch === false) issues.push(lang === 'ar' ? `❌ التاريخ غير متطابق (الموجود: ${aiDetails.dateFound || 'غير معروف'})` : `❌ Date mismatch (Found: ${aiDetails.dateFound || 'unknown'})`);
+    if (aiDetails.isFraudulent) issues.push(lang === 'ar' ? '❌ يشتبه في تلاعب بالإيصال' : '❌ Suspected receipt tampering');
+    if (aiDetails.reason) issues.push(lang === 'ar' ? `📝 السبب: ${aiDetails.reason}` : `📝 Reason: ${aiDetails.reason}`);
+
+    const message = lang === 'ar'
+      ? `🛒 *مشكلة في إيصال الدفع - نيوفلكس ستور*\n\n` +
+        `📋 *تفاصيل الطلب:*\n` +
+        `رقم الطلب: ${order.orderNumber || `#${order.id}`}\n` +
+        `التاريخ: ${dateStr}\n` +
+        `الوقت: ${timeStr}\n\n` +
+        `🛍️ *المنتجات:*\n${itemsText}\n\n` +
+        `💰 *المجموع:* ${order.total} د.ب\n\n` +
+        `👤 *معلومات العميل:*\n` +
+        `الاسم: ${user?.displayName || 'غير محدد'}\n` +
+        `البريد: ${user?.email || 'غير محدد'}\n\n` +
+        `⚠️ *المشاكل المكتشفة في الإيصال:*\n${issues.join('\n')}\n\n` +
+        `💬 *ملاحظة العميل:*\n[اكتب ملاحظتك هنا]`
+      : `🛒 *Receipt Issue - NEWFLIX STORE*\n\n` +
+        `📋 *Order Details:*\n` +
+        `Order: ${order.orderNumber || `#${order.id}`}\n` +
+        `Date: ${dateStr}\n` +
+        `Time: ${timeStr}\n\n` +
+        `🛍️ *Products:*\n${itemsText}\n\n` +
+        `💰 *Total:* ${order.total} BHD\n\n` +
+        `👤 *Customer Info:*\n` +
+        `Name: ${user?.displayName || 'N/A'}\n` +
+        `Email: ${user?.email || 'N/A'}\n\n` +
+        `⚠️ *Issues Detected in Receipt:*\n${issues.join('\n')}\n\n` +
+        `💬 *Customer Note:*\n[Write your note here]`;
 
     return `https://wa.me/97337127483?text=${encodeURIComponent(message)}`;
   };
@@ -216,20 +272,85 @@ export default function MyOrders() {
                 </div>
               )}
 
-              {order.status === 'pending' && order.receiptImage && order.receiptStatus !== 'rejected' && (
-                <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-xl p-4 text-center">
-                  <Hourglass className="w-10 h-10 text-orange-500 mx-auto mb-3" />
-                  <p className="text-base font-bold text-orange-700 dark:text-orange-400 mb-1">
-                    {lang === 'ar' ? 'بانتظار التأكيد من الإدارة' : 'Awaiting Admin Confirmation'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {lang === 'ar' ? 'تم رفع إيصال الدفع بنجاح وسيتم مراجعته قريباً. بعد التأكيد ستصلك أكواد المنتجات هنا.' : 'Your payment receipt has been uploaded and will be reviewed shortly. After confirmation, your product codes will appear here.'}
-                  </p>
-                  <a href="https://wa.me/97337127483" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium">
-                    <MessageCircle className="w-4 h-4" /> {lang === 'ar' ? 'تواصل عبر الواتساب للاستعجال' : 'Contact WhatsApp to expedite'}
-                  </a>
-                </div>
-              )}
+              {order.status === 'pending' && order.receiptImage && order.receiptStatus !== 'rejected' && (() => {
+                const aiData = receiptIssues[order.id] || order.aiVerificationResult;
+                const hasAiIssues = aiData && (aiData.nameMatch === false || aiData.amountMatch === false || aiData.dateMatch === false || aiData.numberMatch === false || aiData.isFraudulent === true);
+
+                return (
+                  <div className="space-y-3">
+                    <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800 rounded-xl p-4 text-center">
+                      <Hourglass className="w-10 h-10 text-orange-500 mx-auto mb-3" />
+                      <p className="text-base font-bold text-orange-700 dark:text-orange-400 mb-1">
+                        {lang === 'ar' ? 'بانتظار التأكيد من الإدارة' : 'Awaiting Admin Confirmation'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {lang === 'ar' ? 'تم رفع إيصال الدفع بنجاح وسيتم مراجعته قريباً. بعد التأكيد ستصلك أكواد المنتجات هنا.' : 'Your payment receipt has been uploaded and will be reviewed shortly. After confirmation, your product codes will appear here.'}
+                      </p>
+                      <a href="https://wa.me/97337127483" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium">
+                        <MessageCircle className="w-4 h-4" /> {lang === 'ar' ? 'تواصل عبر الواتساب للاستعجال' : 'Contact WhatsApp to expedite'}
+                      </a>
+                    </div>
+
+                    {hasAiIssues && (
+                      <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertCircle className="w-5 h-5 text-red-500" />
+                          <p className="text-sm font-bold text-red-700 dark:text-red-400">
+                            {lang === 'ar' ? 'ملاحظات على الإيصال:' : 'Receipt Issues Detected:'}
+                          </p>
+                        </div>
+                        <div className="space-y-1.5 mb-4">
+                          {aiData.nameMatch === false && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              {lang === 'ar' ? `اسم المستلم غير متطابق${aiData.nameFound ? ` (الموجود: ${aiData.nameFound})` : ''}` : `Recipient name mismatch${aiData.nameFound ? ` (Found: ${aiData.nameFound})` : ''}`}
+                            </p>
+                          )}
+                          {aiData.numberMatch === false && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              {lang === 'ar' ? 'رقم الحساب غير متطابق' : 'Account number mismatch'}
+                            </p>
+                          )}
+                          {aiData.amountMatch === false && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              {lang === 'ar' ? `المبلغ غير متطابق${aiData.amountFound ? ` (الموجود: ${aiData.amountFound})` : ''}` : `Amount mismatch${aiData.amountFound ? ` (Found: ${aiData.amountFound})` : ''}`}
+                            </p>
+                          )}
+                          {aiData.dateMatch === false && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              {lang === 'ar' ? `التاريخ غير متطابق${aiData.dateFound ? ` (الموجود: ${aiData.dateFound})` : ''}` : `Date mismatch${aiData.dateFound ? ` (Found: ${aiData.dateFound})` : ''}`}
+                            </p>
+                          )}
+                          {aiData.isFraudulent && (
+                            <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              {lang === 'ar' ? 'يشتبه في تلاعب بالإيصال' : 'Suspected receipt tampering'}
+                            </p>
+                          )}
+                          {aiData.reason && (
+                            <p className="text-xs text-muted-foreground mt-2 border-t border-red-200 dark:border-red-800 pt-2">
+                              {aiData.reason}
+                            </p>
+                          )}
+                        </div>
+                        <a
+                          href={buildWhatsAppAiIssueUrl(order, aiData)}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white rounded-xl px-4 py-3 text-sm font-medium transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          {lang === 'ar' ? 'أبلغ المتجر عن المشكلة عبر الواتساب' : 'Report issue to store via WhatsApp'}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {(order.status === 'paid' || order.status === 'delivered') && (
                 <OrderDelivery orderId={order.id} firebaseUid={user?.uid} lang={lang} />
