@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAQiWBcLbBVneGBSRmoTsFSsYJWUWX9_gQ",
-  authDomain: "dukani-emq1m.firebaseapp.com",
-  databaseURL: "https://dukani-emq1m-default-rtdb.firebaseio.com",
-  projectId: "dukani-emq1m",
-  storageBucket: "dukani-emq1m.firebasestorage.app",
-  messagingSenderId: "389471028986",
-  appId: "1:389471028986:web:cc567736d47ef97067eb43"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 export const app = initializeApp(firebaseConfig);
