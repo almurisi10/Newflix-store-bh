@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface AdminUser {
   id: number;
@@ -12,8 +14,9 @@ interface AdminAuthContextType {
   token: string | null;
   loading: boolean;
   isAdminAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, password: string, displayName: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
+  checkAdminStatus: (email: string, firebaseUid: string) => Promise<{ isAdmin: boolean; role: string | null }>;
+  loginWithFirebase: (idToken: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, displayName: string, inviteCode: string, role: string, firebaseUid?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -54,12 +57,52 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       });
   }, [token, logout]);
 
-  const login = async (email: string, password: string) => {
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+      if (firebaseUser && !token) {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const res = await fetch(`${API_BASE}/admin-auth/firebase-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setToken(data.token);
+            setAdmin(data.admin);
+            localStorage.setItem('admin_token', data.token);
+          }
+        } catch {
+        }
+      }
+      if (!firebaseUser && !token) {
+        setLoading(false);
+      }
+    });
+    return () => unsub();
+  }, [token]);
+
+  const checkAdminStatus = async (email: string, firebaseUid: string) => {
     try {
-      const res = await fetch(`${API_BASE}/admin-auth/login`, {
+      const res = await fetch(`${API_BASE}/admin-auth/check-admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, firebaseUid }),
+      });
+      const data = await res.json();
+      return { isAdmin: data.isAdmin, role: data.role };
+    } catch {
+      return { isAdmin: false, role: null };
+    }
+  };
+
+  const loginWithFirebase = async (idToken: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin-auth/firebase-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error };
@@ -72,12 +115,12 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, displayName: string, inviteCode: string) => {
+  const register = async (email: string, password: string, displayName: string, inviteCode: string, role: string, firebaseUid?: string) => {
     try {
       const res = await fetch(`${API_BASE}/admin-auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, displayName, inviteCode }),
+        body: JSON.stringify({ email, password, displayName, inviteCode, role, firebaseUid }),
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error };
@@ -91,7 +134,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AdminAuthContext.Provider value={{ admin, token, loading, isAdminAuthenticated: !!admin, login, register, logout }}>
+    <AdminAuthContext.Provider value={{ admin, token, loading, isAdminAuthenticated: !!admin, checkAdminStatus, loginWithFirebase, register, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );

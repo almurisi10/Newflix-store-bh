@@ -21,7 +21,6 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import Auth from "@/pages/Auth";
 import AdminDashboard from "@/pages/AdminDashboard";
-import AdminLogin from "@/pages/AdminLogin";
 import MyOrders from "@/pages/MyOrders";
 import AccountSettings from "@/pages/AccountSettings";
 import Wishlist from "@/pages/Wishlist";
@@ -289,11 +288,11 @@ function AppRouter() {
       <Route path="/checkout" component={Checkout} />
       <Route path="/login">{() => <Auth mode="login" />}</Route>
       <Route path="/register">{() => <Auth mode="register" />}</Route>
+      <Route path="/Newflix-login">{() => { window.location.replace(import.meta.env.BASE_URL.replace(/\/$/, '') + '/login'); return null; }}</Route>
       <Route path="/account" component={Account} />
       <Route path="/account/orders" component={MyOrders} />
       <Route path="/account/settings" component={AccountSettings} />
       <Route path="/account/wishlist" component={Wishlist} />
-      <Route path="/Newflix-login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />

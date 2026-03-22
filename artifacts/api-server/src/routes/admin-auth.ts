@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import admin from "firebase-admin";
 
-const JWT_SECRET = process.env.JWT_SECRET || "newflix-admin-secret-key-2024";
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || "newflix-admin-" + (process.env.DATABASE_URL?.slice(-12) || "fallback-key-2024");
 const INVITE_CODE = process.env.ADMIN_INVITE_CODE || "";
 
 if (!admin.apps.length) {
@@ -15,9 +15,9 @@ if (!admin.apps.length) {
 const router: IRouter = Router();
 
 router.post("/admin-auth/register", async (req, res): Promise<void> => {
-  const { email, password, displayName, inviteCode } = req.body;
+  const { email, password, displayName, inviteCode, role, firebaseUid } = req.body;
 
-  if (!email || !password || !displayName || !inviteCode) {
+  if (!email || !displayName || !inviteCode) {
     res.status(400).json({ error: "All fields are required" });
     return;
   }
@@ -35,18 +35,22 @@ router.post("/admin-auth/register", async (req, res): Promise<void> => {
 
   const existing = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
   if (existing.length > 0) {
-    res.status(409).json({ error: "Email already registered" });
+    res.status(409).json({ error: "Email already registered as admin" });
     return;
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const adminRole = "admin";
+
+  const passwordHash = password ? await bcrypt.hash(password, 12) : "";
 
   const [newAdmin] = await db.insert(adminUsersTable).values({
     email,
     passwordHash,
     displayName,
-    role: "admin",
+    role: adminRole,
     active: true,
+    hidden: false,
+    firebaseUid: firebaseUid || null,
   }).returning();
 
   await db.insert(adminActivityLogsTable).values({
@@ -54,7 +58,7 @@ router.post("/admin-auth/register", async (req, res): Promise<void> => {
     action: "register",
     entityType: "admin_user",
     entityId: String(newAdmin!.id),
-    details: { displayName },
+    details: { displayName, role: adminRole },
     ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
   });
 
@@ -83,36 +87,41 @@ router.post("/admin-auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  const [admin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
-  if (!admin) {
+  const [adminUser] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+  if (!adminUser) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
 
-  if (!admin.active) {
+  if (!adminUser.active) {
     res.status(403).json({ error: "Account is deactivated" });
     return;
   }
 
-  const valid = await bcrypt.compare(password, admin.passwordHash);
+  if (!adminUser.passwordHash) {
+    res.status(401).json({ error: "Please use Firebase sign-in for this account" });
+    return;
+  }
+
+  const valid = await bcrypt.compare(password, adminUser.passwordHash);
   if (!valid) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
 
-  await db.update(adminUsersTable).set({ lastLoginAt: new Date() }).where(eq(adminUsersTable.id, admin.id));
+  await db.update(adminUsersTable).set({ lastLoginAt: new Date() }).where(eq(adminUsersTable.id, adminUser.id));
 
   await db.insert(adminActivityLogsTable).values({
     adminEmail: email,
     action: "login",
     entityType: "admin_user",
-    entityId: String(admin.id),
+    entityId: String(adminUser.id),
     details: {},
     ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
   });
 
   const token = jwt.sign(
-    { id: admin.id, email: admin.email, role: admin.role },
+    { id: adminUser.id, email: adminUser.email, role: adminUser.role },
     JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -120,10 +129,10 @@ router.post("/admin-auth/login", async (req, res): Promise<void> => {
   res.json({
     token,
     admin: {
-      id: admin.id,
-      email: admin.email,
-      displayName: admin.displayName,
-      role: admin.role,
+      id: adminUser.id,
+      email: adminUser.email,
+      displayName: adminUser.displayName,
+      role: adminUser.role,
     },
   });
 });
@@ -139,22 +148,31 @@ router.post("/admin-auth/firebase-login", async (req, res): Promise<void> => {
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const email = decodedToken.email;
+    const uid = decodedToken.uid;
 
     if (!email) {
       res.status(400).json({ error: "No email associated with this account" });
       return;
     }
 
-    const [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+    let [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+
+    if (!existingAdmin && uid) {
+      [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.firebaseUid!, uid));
+    }
 
     if (!existingAdmin) {
-      res.status(403).json({ error: "No admin account found for this email. Register first with an invite code." });
+      res.status(403).json({ error: "No admin account found. Register with an invite code first." });
       return;
     }
 
     if (!existingAdmin.active) {
       res.status(403).json({ error: "Account is deactivated" });
       return;
+    }
+
+    if (!existingAdmin.firebaseUid && uid) {
+      await db.update(adminUsersTable).set({ firebaseUid: uid }).where(eq(adminUsersTable.id, existingAdmin.id));
     }
 
     await db.update(adminUsersTable).set({ lastLoginAt: new Date() }).where(eq(adminUsersTable.id, existingAdmin.id));
@@ -186,6 +204,60 @@ router.post("/admin-auth/firebase-login", async (req, res): Promise<void> => {
   } catch (err: any) {
     console.error("Firebase login error:", err);
     res.status(401).json({ error: "Invalid Firebase token" });
+  }
+});
+
+router.post("/admin-auth/check-admin", async (req, res): Promise<void> => {
+  const { email, firebaseUid } = req.body;
+
+  if (!email && !firebaseUid) {
+    res.json({ isAdmin: false });
+    return;
+  }
+
+  let adminUser = null;
+  if (email) {
+    [adminUser] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+  }
+  if (!adminUser && firebaseUid) {
+    [adminUser] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.firebaseUid!, firebaseUid));
+  }
+
+  res.json({
+    isAdmin: !!adminUser && adminUser.active,
+  });
+});
+
+router.patch("/admin-auth/toggle-hidden/:id", async (req, res): Promise<void> => {
+  const adminId = parseInt(req.params.id);
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "No token provided" });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(authHeader.split(" ")[1]!, JWT_SECRET) as any;
+    const [requester] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.id, decoded.id));
+    if (!requester || requester.role !== "super_admin") {
+      res.status(403).json({ error: "Only super admins can toggle visibility" });
+      return;
+    }
+
+    const [targetAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.id, adminId));
+    if (!targetAdmin) {
+      res.status(404).json({ error: "Admin not found" });
+      return;
+    }
+
+    const [updated] = await db.update(adminUsersTable)
+      .set({ hidden: !targetAdmin.hidden })
+      .where(eq(adminUsersTable.id, adminId))
+      .returning();
+
+    res.json({ admin: updated, hidden: updated!.hidden });
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
   }
 });
 
@@ -239,18 +311,18 @@ router.get("/admin-auth/me", async (req, res): Promise<void> => {
 
   try {
     const decoded = jwt.verify(authHeader.split(" ")[1]!, JWT_SECRET) as any;
-    const [admin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.id, decoded.id));
-    if (!admin || !admin.active) {
+    const [adminUser] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.id, decoded.id));
+    if (!adminUser || !adminUser.active) {
       res.status(401).json({ error: "Invalid or deactivated admin" });
       return;
     }
 
     res.json({
       admin: {
-        id: admin.id,
-        email: admin.email,
-        displayName: admin.displayName,
-        role: admin.role,
+        id: adminUser.id,
+        email: adminUser.email,
+        displayName: adminUser.displayName,
+        role: adminUser.role,
       },
     });
   } catch {

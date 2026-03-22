@@ -15,49 +15,78 @@ function HeroSlider({ sections, lang }: { sections: any[]; lang: string }) {
   const sliderSections = sections.filter((s: any) => s.sectionType === 'slider' && s.active);
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<any>(null);
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     if (sliderSections.length <= 1) return;
     timerRef.current = setInterval(() => {
       setCurrent(c => (c + 1) % sliderSections.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(timerRef.current);
   }, [sliderSections.length]);
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([idx, video]) => {
+      if (video) {
+        if (parseInt(idx) === current) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      }
+    });
+  }, [current]);
 
   if (sliderSections.length === 0) return null;
 
   const goTo = (idx: number) => {
     setCurrent(idx);
     clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setCurrent(c => (c + 1) % sliderSections.length), 5000);
+    timerRef.current = setInterval(() => setCurrent(c => (c + 1) % sliderSections.length), 6000);
+  };
+
+  const isVideo = (url: string) => {
+    if (!url) return false;
+    return /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) || url.includes('video');
   };
 
   return (
     <section className="relative w-full overflow-hidden rounded-3xl mx-auto container px-4">
-      <div className="relative aspect-[21/9] md:aspect-[3/1] rounded-3xl overflow-hidden">
+      <div className="relative aspect-[21/9] md:aspect-[3/1] rounded-3xl overflow-hidden shadow-2xl">
         {sliderSections.map((slide: any, idx: number) => {
           const config = slide.config || {};
+          const mediaUrl = config.video || config.image;
+          const hasVideo = config.video && isVideo(config.video);
           return (
             <div
               key={slide.id}
-              className={`absolute inset-0 transition-all duration-700 ${idx === current ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+              className={`absolute inset-0 transition-all duration-700 ease-out ${idx === current ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
             >
-              {config.image && (
+              {hasVideo ? (
+                <video
+                  ref={el => { videoRefs.current[idx] = el; }}
+                  src={config.video}
+                  muted
+                  loop
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : config.image ? (
                 <img src={config.image} alt={lang === 'ar' ? slide.titleAr : slide.titleEn} className="w-full h-full object-cover" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              ) : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <div className="absolute bottom-0 start-0 p-6 md:p-10 text-white max-w-2xl">
-                <h2 className="text-2xl md:text-4xl font-bold mb-2">
+                <h2 className="text-2xl md:text-4xl font-bold mb-2 drop-shadow-lg">
                   {lang === 'ar' ? slide.titleAr : slide.titleEn}
                 </h2>
                 {(slide.subtitleAr || slide.subtitleEn) && (
-                  <p className="text-sm md:text-lg text-white/80 mb-4">
+                  <p className="text-sm md:text-lg text-white/80 mb-4 drop-shadow">
                     {lang === 'ar' ? slide.subtitleAr : slide.subtitleEn}
                   </p>
                 )}
                 {config.link && (
                   <Link href={config.link}>
-                    <Button className="rounded-xl">{lang === 'ar' ? 'تسوق الآن' : 'Shop Now'}</Button>
+                    <Button className="rounded-xl shadow-lg">{lang === 'ar' ? 'تسوق الآن' : 'Shop Now'}</Button>
                   </Link>
                 )}
               </div>
@@ -74,7 +103,7 @@ function HeroSlider({ sections, lang }: { sections: any[]; lang: string }) {
             </button>
             <div className="absolute bottom-4 start-1/2 -translate-x-1/2 flex gap-2">
               {sliderSections.map((_: any, idx: number) => (
-                <button key={idx} onClick={() => goTo(idx)} className={`w-2.5 h-2.5 rounded-full transition-all ${idx === current ? 'bg-white w-8' : 'bg-white/50'}`} />
+                <button key={idx} onClick={() => goTo(idx)} className={`h-2 rounded-full transition-all ${idx === current ? 'bg-white w-8' : 'bg-white/50 w-2.5'}`} />
               ))}
             </div>
           </>

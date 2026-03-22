@@ -48,9 +48,13 @@ artifacts-monorepo/
 
 ## Admin System
 
-- **Admin Login**: `/Newflix-login` — separate from customer auth, JWT-based sessions
+- **Unified Auth**: `/login` page has Customer/Admin tab switcher — admin login merged into main auth page
+- **Old `/Newflix-login` route**: Redirects to `/login` automatically
+- **Firebase Admin Auth**: Admin accounts linked to Firebase via `firebaseUid`, supports Google sign-in
 - **Invite Code**: Server-validated via `ADMIN_INVITE_CODE` env var (`Almurisi34490039@`)
-- **Admin Auth**: bcryptjs password hashing, JWT tokens (7-day expiry), admin middleware (`requireAdmin`)
+- **Admin Auth**: bcryptjs password hashing + Firebase ID token login, JWT tokens (7-day expiry), admin middleware (`requireAdmin`)
+- **Role Assignment**: New admins always get `admin` role (server-enforced, no client-side role selection)
+- **Hidden Admin**: Super admin can toggle `hidden` flag on admin accounts via `PATCH /admin-auth/toggle-hidden/:id`
 - **Signup Toggle**: Admin can disable new admin registration from Settings
 - **CMS**: `site_content` table stores all editable text (AR/EN) with content keys
 - **Inline Editing**: When admin logged in, toggle "Edit Mode" to see pencil icons on editable text
@@ -96,7 +100,7 @@ artifacts-monorepo/
 /product/:id       → Product detail page
 /cart              → Cart with coupon support
 /checkout          → BenefitPay payment + receipt upload
-/login             → Customer Firebase auth
+/login             → Unified auth (customer + admin tabs) with Google sign-in
 /account           → Account hub
 /account/orders    → My Orders with delivery codes
 /account/wishlist  → Wishlist
@@ -105,8 +109,8 @@ artifacts-monorepo/
 /contact           → Contact page
 /faq               → FAQ page
 /terms             → Terms page
-/Newflix-login      → Admin login
-/Newflix-admin      → Admin dashboard
+/Newflix-login      → Redirects to /login
+/admin             → Admin dashboard
 ```
 
 ## API Routes (`artifacts/api-server/`)
@@ -140,8 +144,12 @@ All routes mounted at `/api`:
 - `GET/POST /api/popups` — popups management
 - `GET /api/inventory/:productId` — inventory items
 - `POST /api/inventory/:productId` — add inventory items
-- `POST /api/admin-auth/register` — register admin (requires invite code)
-- `POST /api/admin-auth/login` — admin login (returns JWT)
+- `POST /api/admin-auth/register` — register admin (requires invite code, role always "admin")
+- `POST /api/admin-auth/login` — admin login with email/password (returns JWT)
+- `POST /api/admin-auth/firebase-login` — admin login with Firebase ID token
+- `POST /api/admin-auth/check-admin` — check if email/uid is admin (returns boolean only)
+- `PATCH /api/admin-auth/toggle-hidden/:id` — toggle admin visibility (super_admin only)
+- `POST /api/admin-auth/reset-password` — reset admin password (requires invite code)
 - `GET /api/admin-auth/me` — verify admin token
 - `GET/POST /api/site-content` — list/create site content
 - `GET/PUT /api/site-content/:key` — get/update content by key
@@ -158,6 +166,14 @@ Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `pop
 Key product columns: `deliveryMode` (multi_code/single_code/whatsapp_manual), `singleCodeValue`, `featuresAr`, `featuresEn`, `packages` (JSONB)
 Key order columns: `orderNumber` (unique, format: `NEWFLIX-YYYYMMDD-XXXX`), `receiptImage`, `receiptStatus` (pending/verified/rejected), `aiVerificationResult` (JSONB), `loyaltyPointsEarned`
 Key wallet columns: `firebaseUid` (unique), `balance` (real, default 0)
+Key admin_users columns: `firebaseUid` (Firebase UID link), `hidden` (boolean, hide from admin list)
+
+## WhatsApp & Invoice
+
+- After checkout, WhatsApp button sends comprehensive order message to `97337127483`
+- Message includes: order number, date/time, customer details, itemized products, subtotal/discount/total, notes
+- Professional invoice component shown on order completion page with NEWFLIX branding
+- Hero slider supports video files (mp4, webm, ogg, mov) via `config.video` field
 
 ## Key Configuration
 

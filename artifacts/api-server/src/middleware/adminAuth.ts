@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { db, adminUsersTable } from "@workspace/db";
 
-const JWT_SECRET = process.env.JWT_SECRET || "newflix-admin-secret-key-2024";
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || "newflix-admin-" + (process.env.DATABASE_URL?.slice(-12) || "fallback-key-2024");
 
 export interface AdminRequest extends Request {
   adminUser?: {

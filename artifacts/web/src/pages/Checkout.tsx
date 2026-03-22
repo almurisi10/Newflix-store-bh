@@ -8,9 +8,103 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
-import { ShieldCheck, CreditCard, Upload, AlertTriangle, CheckCircle, XCircle, Clock, MessageCircle, Tag, Loader2 } from 'lucide-react';
+import { ShieldCheck, CreditCard, Upload, AlertTriangle, CheckCircle, Clock, MessageCircle, Tag, Loader2, Download, Receipt, Sparkles } from 'lucide-react';
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
+
+function Invoice({ orderNumber, orderTotal, items, formData, couponApplied, discountAmount, subtotal, lang }: any) {
+  const date = new Date();
+  const formattedDate = date.toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedTime = date.toLocaleTimeString(lang === 'ar' ? 'ar-BH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div id="invoice" className="bg-white text-gray-900 rounded-2xl border border-gray-200 overflow-hidden shadow-lg print:shadow-none">
+      <div className="bg-gradient-to-r from-[#173E52] to-[#1FB5AC] p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+              <span className="text-xl font-bold">N</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">NEWFLIX STORE</h3>
+              <p className="text-white/70 text-xs">{lang === 'ar' ? 'متجر المنتجات الرقمية' : 'Digital Products Store'}</p>
+            </div>
+          </div>
+          <div className="text-end">
+            <p className="text-xs text-white/60">{lang === 'ar' ? 'فاتورة' : 'INVOICE'}</p>
+            <p className="font-mono font-bold text-sm">{orderNumber}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+          <div>
+            <p className="text-gray-400 text-xs mb-1">{lang === 'ar' ? 'العميل' : 'Customer'}</p>
+            <p className="font-semibold">{formData.name}</p>
+            <p className="text-gray-500 text-xs">{formData.email}</p>
+            {formData.phone && <p className="text-gray-500 text-xs dir-ltr">{formData.phone}</p>}
+          </div>
+          <div className="text-end">
+            <p className="text-gray-400 text-xs mb-1">{lang === 'ar' ? 'التاريخ' : 'Date'}</p>
+            <p className="font-semibold text-sm">{formattedDate}</p>
+            <p className="text-gray-500 text-xs">{formattedTime}</p>
+          </div>
+        </div>
+
+        <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="text-start p-3 text-gray-500 font-medium">{lang === 'ar' ? 'المنتج' : 'Product'}</th>
+                <th className="text-center p-3 text-gray-500 font-medium">{lang === 'ar' ? 'الكمية' : 'Qty'}</th>
+                <th className="text-end p-3 text-gray-500 font-medium">{lang === 'ar' ? 'السعر' : 'Price'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item: any, i: number) => (
+                <tr key={i} className="border-t border-gray-50">
+                  <td className="p-3 font-medium">{lang === 'ar' ? item.product.titleAr : item.product.titleEn}</td>
+                  <td className="p-3 text-center text-gray-500">{item.quantity}</td>
+                  <td className="p-3 text-end font-semibold">{(item.product.price * item.quantity).toFixed(2)} {lang === 'ar' ? 'د.ب' : 'BHD'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between text-gray-500">
+            <span>{lang === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}</span>
+            <span>{subtotal.toFixed(2)} {lang === 'ar' ? 'د.ب' : 'BHD'}</span>
+          </div>
+          {couponApplied && (
+            <div className="flex justify-between text-green-600">
+              <span>{lang === 'ar' ? 'خصم' : 'Discount'} ({couponApplied.code})</span>
+              <span>-{discountAmount.toFixed(2)} {lang === 'ar' ? 'د.ب' : 'BHD'}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-200">
+            <span>{lang === 'ar' ? 'الإجمالي' : 'Total'}</span>
+            <span className="text-[#1FB5AC]">{orderTotal.toFixed(2)} {lang === 'ar' ? 'د.ب' : 'BHD'}</span>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-dashed border-gray-200 text-center">
+          <div className="inline-flex items-center gap-2 text-sm text-[#1FB5AC] font-medium">
+            <Sparkles className="w-4 h-4" />
+            {lang === 'ar'
+              ? 'شكراً لثقتكم في نيوفلكس ستور! نحن هنا دائماً لخدمتكم.'
+              : 'Thank you for choosing NEWFLIX STORE! We are always here to serve you.'}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            {lang === 'ar' ? 'واتساب: 37127483 | انستغرام: @NEWFLIX.ADS' : 'WhatsApp: 37127483 | Instagram: @NEWFLIX.ADS'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCart();
@@ -36,12 +130,14 @@ export default function Checkout() {
   const [uploading, setUploading] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedItems, setSavedItems] = useState<any[]>([]);
 
   if (items.length === 0 && !orderId) {
     setLocation('/cart');
     return null;
   }
 
+  const displayItems = savedItems.length > 0 ? savedItems : items;
   const discountAmount = couponApplied?.discountAmount || 0;
   const finalTotal = Math.max(0, subtotal - discountAmount);
 
@@ -83,6 +179,7 @@ export default function Checkout() {
 
     setIsSubmitting(true);
     try {
+      setSavedItems([...items]);
       const res = await fetch(`${API}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,13 +197,13 @@ export default function Checkout() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || 'Failed to create order');
       setOrderId(data.id);
       setOrderNumber(data.orderNumber || null);
       setOrderTotal(data.total);
       setStep('payment');
-    } catch {
-      toast.error(lang === 'ar' ? 'حدث خطأ' : 'Error creating order');
+    } catch (err: any) {
+      toast.error(err.message || (lang === 'ar' ? 'حدث خطأ في إنشاء الطلب' : 'Error creating order'));
     }
     setIsSubmitting(false);
   };
@@ -143,27 +240,84 @@ export default function Checkout() {
   };
 
   const buildWhatsAppUrl = () => {
-    const date = new Date().toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US');
-    const orderItems = items.map(i => `${lang === 'ar' ? i.product.titleAr : i.product.titleEn} x${i.quantity}`).join('\n');
+    const date = new Date();
+    const formattedDate = date.toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedTime = date.toLocaleTimeString(lang === 'ar' ? 'ar-BH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    const orderItems = displayItems.map((i: any) => {
+      const item = i.product || i;
+      const title = lang === 'ar' ? (item.titleAr || item.titleEn) : (item.titleEn || item.titleAr);
+      const qty = i.quantity || 1;
+      const price = ((item.price || 0) * qty).toFixed(2);
+      return `  ${title} × ${qty} = ${price} ${lang === 'ar' ? 'د.ب' : 'BHD'}`;
+    }).join('\n');
+
     const msg = lang === 'ar'
-      ? `🛒 طلب جديد\n\n📋 رقم الطلب: ${orderNumber || orderId}\n👤 الاسم: ${formData.name}\n📧 البريد: ${formData.email}\n📱 الهاتف: ${formData.phone || '-'}\n📅 التاريخ: ${date}\n\n🛍️ المنتجات:\n${orderItems}\n\n💰 المجموع: ${orderTotal} د.ب${couponApplied ? `\n🎟️ كوبون: ${couponApplied.code} (-${discountAmount.toFixed(2)} د.ب)` : ''}`
-      : `🛒 New Order\n\n📋 Order: ${orderNumber || orderId}\n👤 Name: ${formData.name}\n📧 Email: ${formData.email}\n📱 Phone: ${formData.phone || '-'}\n📅 Date: ${date}\n\n🛍️ Items:\n${orderItems}\n\n💰 Total: ${orderTotal} BHD${couponApplied ? `\n🎟️ Coupon: ${couponApplied.code} (-${discountAmount.toFixed(2)} BHD)` : ''}`;
+      ? `━━━━━━━━━━━━━━━━
+🛒 *طلب جديد - نيوفلكس ستور*
+━━━━━━━━━━━━━━━━
+
+📋 *رقم الطلب:* ${orderNumber || orderId}
+📅 *التاريخ:* ${formattedDate}
+🕐 *الوقت:* ${formattedTime}
+
+👤 *بيانات العميل:*
+  الاسم: ${formData.name}
+  البريد: ${formData.email}
+  الهاتف: ${formData.phone || 'غير محدد'}
+
+🛍️ *المنتجات:*
+${orderItems}
+
+💰 *تفاصيل الدفع:*
+  المجموع الفرعي: ${subtotal.toFixed(2)} د.ب${couponApplied ? `\n  كوبون خصم (${couponApplied.code}): -${discountAmount.toFixed(2)} د.ب` : ''}
+  *الإجمالي: ${orderTotal.toFixed(2)} د.ب*
+${formData.notes ? `\n📝 *ملاحظات:* ${formData.notes}` : ''}
+
+━━━━━━━━━━━━━━━━
+✨ شكراً لتسوقكم من نيوفلكس ستور!`
+      : `━━━━━━━━━━━━━━━━
+🛒 *New Order - NEWFLIX STORE*
+━━━━━━━━━━━━━━━━
+
+📋 *Order:* ${orderNumber || orderId}
+📅 *Date:* ${formattedDate}
+🕐 *Time:* ${formattedTime}
+
+👤 *Customer Details:*
+  Name: ${formData.name}
+  Email: ${formData.email}
+  Phone: ${formData.phone || 'Not provided'}
+
+🛍️ *Products:*
+${orderItems}
+
+💰 *Payment Details:*
+  Subtotal: ${subtotal.toFixed(2)} BHD${couponApplied ? `\n  Coupon (${couponApplied.code}): -${discountAmount.toFixed(2)} BHD` : ''}
+  *Total: ${orderTotal.toFixed(2)} BHD*
+${formData.notes ? `\n📝 *Notes:* ${formData.notes}` : ''}
+
+━━━━━━━━━━━━━━━━
+✨ Thank you for shopping at NEWFLIX STORE!`;
     return `https://wa.me/97337127483?text=${encodeURIComponent(msg)}`;
   };
 
   if (step === 'done') {
     return (
-      <div className="container mx-auto px-4 py-12 max-w-lg text-center">
-        <div className="bg-card rounded-3xl border border-border p-8 shadow-xl">
+      <div className="container mx-auto px-4 py-12 max-w-2xl">
+        <div className="bg-card rounded-3xl border border-border p-8 shadow-xl text-center mb-8">
           {verificationResult?.verified ? (
             <>
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
               <h2 className="text-2xl font-bold mb-2">{lang === 'ar' ? 'تم تأكيد طلبك!' : 'Order Confirmed!'}</h2>
               <p className="text-muted-foreground mb-2">{lang === 'ar' ? 'تم التحقق من الإيصال وسيتم تسليم المنتج في طلباتي' : 'Receipt verified, product will be delivered to My Orders'}</p>
             </>
           ) : (
             <>
-              <Clock className="w-16 h-16 text-amber-500 mx-auto mb-4" />
+              <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-10 h-10 text-amber-500" />
+              </div>
               <h2 className="text-2xl font-bold mb-2">{lang === 'ar' ? 'تم استلام طلبك' : 'Order Received'}</h2>
               <p className="text-muted-foreground mb-4">{lang === 'ar' ? 'سيتم مراجعة الإيصال وتأكيد الطلب قريباً' : 'Receipt is under review, order will be confirmed soon'}</p>
               {verificationResult?.reason && (
@@ -174,27 +328,37 @@ export default function Checkout() {
             </>
           )}
 
-          {orderNumber && (
-            <div className="bg-muted/50 rounded-xl p-3 mb-4">
-              <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'رقم الطلب' : 'Order Number'}</p>
-              <p className="font-mono font-bold text-lg">{orderNumber}</p>
-            </div>
-          )}
-
           <div className="mt-6 space-y-3">
             <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer" className="block">
-              <Button className="w-full rounded-xl gap-2 bg-green-600 hover:bg-green-700 text-white">
+              <Button className="w-full rounded-xl gap-2 bg-green-600 hover:bg-green-700 text-white h-12">
                 <MessageCircle className="w-5 h-5" />
-                {lang === 'ar' ? 'تواصل عبر الواتساب' : 'Contact via WhatsApp'}
+                {lang === 'ar' ? 'إرسال الطلب عبر الواتساب' : 'Send Order via WhatsApp'}
               </Button>
             </a>
-            <Button onClick={() => setLocation('/account/orders')} variant="outline" className="w-full rounded-xl">
+            <Button onClick={() => setLocation('/account/orders')} variant="outline" className="w-full rounded-xl h-12">
               {lang === 'ar' ? 'عرض طلباتي' : 'View My Orders'}
             </Button>
             <Button onClick={() => setLocation('/shop')} variant="ghost" className="w-full rounded-xl">
               {lang === 'ar' ? 'متابعة التسوق' : 'Continue Shopping'}
             </Button>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Receipt className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-lg">{lang === 'ar' ? 'فاتورة الطلب' : 'Order Invoice'}</h3>
+          </div>
+          <Invoice
+            orderNumber={orderNumber}
+            orderTotal={orderTotal}
+            items={displayItems}
+            formData={formData}
+            couponApplied={couponApplied}
+            discountAmount={discountAmount}
+            subtotal={subtotal}
+            lang={lang}
+          />
         </div>
       </div>
     );
@@ -240,8 +404,8 @@ export default function Checkout() {
               <div className="text-sm text-amber-700 dark:text-amber-400">
                 <p className="font-bold mb-1">{lang === 'ar' ? 'تنبيه مهم:' : 'Important Notice:'}</p>
                 <p>{lang === 'ar'
-                  ? 'يجب أن يكون الاسم والرقم والمبلغ في الإيصال مطابقاً تماماً. يتم التحقق من الإيصال تلقائياً بالذكاء الاصطناعي وسيتم رفض الإيصالات المعدلة أو المزيفة.'
-                  : 'The name, number, and amount on the receipt must match exactly. Receipts are automatically verified by AI and edited/fake receipts will be rejected.'}
+                  ? 'يجب أن يكون الاسم والرقم والمبلغ في الإيصال مطابقاً تماماً. يتم التحقق من الإيصال تلقائياً بالذكاء الاصطناعي.'
+                  : 'The name, number, and amount on the receipt must match exactly. Receipts are automatically verified by AI.'}
                 </p>
               </div>
             </div>
@@ -276,13 +440,12 @@ export default function Checkout() {
               )}
             </Button>
 
-            <div className="flex justify-center">
-              <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-green-600 hover:underline">
-                <MessageCircle className="w-4 h-4" />
-                {lang === 'ar' ? 'تواصل عبر الواتساب' : 'Contact via WhatsApp'}
-              </a>
-            </div>
+            <a href={buildWhatsAppUrl()} target="_blank" rel="noreferrer" className="block">
+              <Button variant="outline" className="w-full rounded-xl gap-2 text-green-600 border-green-200 hover:bg-green-50 h-12">
+                <MessageCircle className="w-5 h-5" />
+                {lang === 'ar' ? 'إرسال الطلب عبر الواتساب' : 'Send Order via WhatsApp'}
+              </Button>
+            </a>
           </div>
         </div>
       </div>
@@ -310,7 +473,6 @@ export default function Checkout() {
                 <div>
                   <Label htmlFor="email">{lang === 'ar' ? 'البريد الإلكتروني *' : 'Email Address *'}</Label>
                   <Input id="email" type="email" required className="h-12 mt-1.5" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                  <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'سنرسل المنتجات الرقمية إلى حسابك' : 'Digital products will be sent to your account'}</p>
                 </div>
                 <div>
                   <Label htmlFor="phone">{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</Label>
@@ -344,7 +506,12 @@ export default function Checkout() {
             </div>
 
             <Button type="submit" className="w-full h-14 text-lg rounded-xl shadow-xl shadow-primary/20" disabled={isSubmitting}>
-              {isSubmitting ? (lang === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (lang === 'ar' ? 'متابعة إلى الدفع' : 'Continue to Payment')}
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {lang === 'ar' ? 'جاري المعالجة...' : 'Processing...'}
+                </div>
+              ) : (lang === 'ar' ? 'متابعة إلى الدفع' : 'Continue to Payment')}
             </Button>
 
             <div className="flex justify-center items-center gap-2 text-sm text-muted-foreground">
@@ -362,7 +529,7 @@ export default function Checkout() {
               <div key={item.product.id} className="flex gap-4 items-center">
                 <div className="relative">
                   <div className="w-16 h-16 rounded-lg overflow-hidden border border-border">
-                    <img src={item.product.mainImage} alt="img" className="w-full h-full object-cover" />
+                    <img src={item.product.mainImage} alt="" className="w-full h-full object-cover" />
                   </div>
                   <span className="absolute -top-2 -right-2 bg-primary text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">{item.quantity}</span>
                 </div>
@@ -385,9 +552,7 @@ export default function Checkout() {
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-500" />
                     <span className="text-sm font-medium text-green-700 dark:text-green-400">{couponApplied.code}</span>
-                    <span className="text-xs text-green-600">
-                      (-{couponApplied.discountAmount.toFixed(2)} {t('bhd')})
-                    </span>
+                    <span className="text-xs text-green-600">(-{couponApplied.discountAmount.toFixed(2)} {t('bhd')})</span>
                   </div>
                   <button onClick={removeCoupon} className="text-xs text-destructive hover:underline">
                     {lang === 'ar' ? 'إزالة' : 'Remove'}
