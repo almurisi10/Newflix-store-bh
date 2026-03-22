@@ -757,6 +757,7 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
                     <p>{lang === 'ar' ? 'مطابقة الاسم:' : 'Name Match:'} {selectedOrder.aiVerificationResult.nameMatch ? '✅' : '❌'} {selectedOrder.aiVerificationResult.nameFound || ''}</p>
                     <p>{lang === 'ar' ? 'مطابقة الرقم:' : 'Number Match:'} {selectedOrder.aiVerificationResult.numberMatch ? '✅' : '❌'}</p>
                     <p>{lang === 'ar' ? 'مطابقة المبلغ:' : 'Amount Match:'} {selectedOrder.aiVerificationResult.amountMatch ? '✅' : '❌'} {selectedOrder.aiVerificationResult.amountFound || ''}</p>
+                    <p>{lang === 'ar' ? 'مطابقة التاريخ:' : 'Date Match:'} {selectedOrder.aiVerificationResult.dateMatch ? '✅' : '❌'} {selectedOrder.aiVerificationResult.dateFound || ''}</p>
                     <p>{lang === 'ar' ? 'الثقة:' : 'Confidence:'} {selectedOrder.aiVerificationResult.confidence || 0}%</p>
                     {selectedOrder.aiVerificationResult.isFraudulent && <p className="text-destructive font-medium">{lang === 'ar' ? 'تحذير: يحتمل تزوير!' : 'Warning: Possibly fraudulent!'}</p>}
                     <p>{selectedOrder.aiVerificationResult.reason}</p>

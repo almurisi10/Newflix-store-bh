@@ -107,12 +107,23 @@ async function verifyReceipt(filePath: string, order: any) {
   const base64Image = imageData.toString("base64");
   const mimeType = filePath.endsWith(".png") ? "image/png" : "image/jpeg";
 
-  const prompt = `You are a payment receipt verification AI. Analyze this BenefitPay/bank transfer receipt image carefully.
+  const now = new Date();
+  const bahrainTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Bahrain" }));
+  const todayFormatted = `${bahrainTime.getFullYear()}-${String(bahrainTime.getMonth() + 1).padStart(2, "0")}-${String(bahrainTime.getDate()).padStart(2, "0")}`;
+  const todayDay = bahrainTime.getDate();
+  const todayMonth = bahrainTime.getMonth() + 1;
+  const todayYear = bahrainTime.getFullYear();
 
-VERIFY THE FOLLOWING:
-1. Recipient name must be: ESMAIL ALMURISI (or close Arabic/English match: اسماعيل المريسي)
-2. Recipient number/account must contain: 34490039
-3. Amount must be exactly: ${order.total} BHD (Bahraini Dinar)
+  const prompt = `You are a payment receipt verification AI for a store in Bahrain. Analyze this BenefitPay/bank transfer receipt image carefully.
+
+TODAY'S DATE (Bahrain timezone): ${todayFormatted} (Day: ${todayDay}, Month: ${todayMonth}, Year: ${todayYear})
+
+VERIFY ALL OF THE FOLLOWING — ALL must pass for verification:
+
+1. **RECIPIENT NAME**: Must be ESMAIL ALMURISI (or close Arabic/English match: اسماعيل المريسي or إسماعيل المريسي)
+2. **RECIPIENT NUMBER/ACCOUNT**: Must contain: 34490039
+3. **AMOUNT**: Must be exactly ${order.total} BHD (Bahraini Dinar)
+4. **DATE**: The receipt date MUST match today's date (${todayFormatted}). Extract the date shown on the receipt. If the receipt date is in the future, or from a previous day, it MUST fail. Only accept if the day, month, and year all match today. Check all date formats (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, Arabic dates, etc.)
 
 ALSO CHECK FOR FRAUD:
 - Is this a real receipt or AI-generated/edited?
@@ -126,13 +137,17 @@ Respond in JSON format ONLY:
   "nameMatch": true/false,
   "numberMatch": true/false,
   "amountMatch": true/false,
+  "dateMatch": true/false,
   "amountFound": "amount found in receipt",
   "nameFound": "name found in receipt",
+  "dateFound": "date found in receipt (as shown)",
   "isFraudulent": true/false,
   "fraudReasons": ["reason1", "reason2"],
   "confidence": 0-100,
   "reason": "explanation in Arabic"
-}`;
+}
+
+IMPORTANT: "verified" should be true ONLY if nameMatch AND numberMatch AND amountMatch AND dateMatch are ALL true AND isFraudulent is false.`;
 
   try {
     const result = await ai.models.generateContent({
@@ -153,9 +168,15 @@ Respond in JSON format ONLY:
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      const isVerified = parsed.nameMatch === true
+        && parsed.numberMatch === true
+        && parsed.amountMatch === true
+        && parsed.dateMatch === true
+        && !parsed.isFraudulent
+        && (parsed.confidence ?? 0) >= 70;
       return {
-        verified: parsed.verified === true && !parsed.isFraudulent && parsed.confidence >= 70,
         ...parsed,
+        verified: isVerified,
       };
     }
     return { verified: false, reason: "Could not parse AI response", confidence: 0 };
