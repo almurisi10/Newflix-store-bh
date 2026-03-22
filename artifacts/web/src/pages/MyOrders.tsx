@@ -89,6 +89,49 @@ export default function MyOrders() {
     toast.success(lang === 'ar' ? 'تم النسخ' : 'Copied');
   };
 
+  const buildWhatsAppIssueUrl = (order: any) => {
+    const orderDate = new Date(order.createdAt);
+    const dateStr = orderDate.toLocaleDateString(lang === 'ar' ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = orderDate.toLocaleTimeString(lang === 'ar' ? 'ar-BH' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const itemsText = (order.items || []).map((item: any, idx: number) => {
+      const title = lang === 'ar' ? item.titleAr : item.titleEn;
+      return `${idx + 1}. ${title} | ${lang === 'ar' ? 'الكمية' : 'Qty'}: ${item.quantity} | ${lang === 'ar' ? 'السعر' : 'Price'}: ${item.price} ${lang === 'ar' ? 'د.ب' : 'BHD'}`;
+    }).join('\n');
+
+    const statusText = getStatusConfig(order).label;
+
+    const message = lang === 'ar'
+      ? `🛒 *بلاغ مشكلة في طلب - نيوفلكس ستور*\n\n` +
+        `📋 *تفاصيل الطلب:*\n` +
+        `رقم الطلب: ${order.orderNumber || `#${order.id}`}\n` +
+        `التاريخ: ${dateStr}\n` +
+        `الوقت: ${timeStr}\n` +
+        `الحالة: ${statusText}\n\n` +
+        `🛍️ *المنتجات:*\n${itemsText}\n\n` +
+        `💰 *المجموع:* ${order.total} د.ب\n` +
+        (order.discount ? `🏷️ *الخصم:* ${order.discount} د.ب\n` : '') +
+        `\n👤 *معلومات العميل:*\n` +
+        `الاسم: ${user?.displayName || 'غير محدد'}\n` +
+        `البريد: ${user?.email || 'غير محدد'}\n\n` +
+        `⚠️ *المشكلة:*\n[اكتب المشكلة هنا]`
+      : `🛒 *Order Issue Report - NEWFLIX STORE*\n\n` +
+        `📋 *Order Details:*\n` +
+        `Order: ${order.orderNumber || `#${order.id}`}\n` +
+        `Date: ${dateStr}\n` +
+        `Time: ${timeStr}\n` +
+        `Status: ${statusText}\n\n` +
+        `🛍️ *Products:*\n${itemsText}\n\n` +
+        `💰 *Total:* ${order.total} BHD\n` +
+        (order.discount ? `🏷️ *Discount:* ${order.discount} BHD\n` : '') +
+        `\n👤 *Customer Info:*\n` +
+        `Name: ${user?.displayName || 'N/A'}\n` +
+        `Email: ${user?.email || 'N/A'}\n\n` +
+        `⚠️ *Issue:*\n[Describe your issue here]`;
+
+    return `https://wa.me/97337127483?text=${encodeURIComponent(message)}`;
+  };
+
   const pendingPayment = (orders || []).filter((o: any) => o.status === 'pending' && (!o.receiptImage || o.receiptStatus === 'rejected'));
   const awaitingConfirmation = (orders || []).filter((o: any) => o.status === 'pending' && o.receiptImage && o.receiptStatus !== 'rejected');
   const completed = (orders || []).filter((o: any) => o.status === 'paid' || o.status === 'delivered');
@@ -191,6 +234,18 @@ export default function MyOrders() {
               {(order.status === 'paid' || order.status === 'delivered') && (
                 <OrderDelivery orderId={order.id} firebaseUid={user?.uid} lang={lang} />
               )}
+
+              <a
+                href={buildWhatsAppIssueUrl(order)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center gap-2 w-full bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl px-4 py-3 text-sm font-medium transition-colors"
+              >
+                <AlertCircle className="w-4 h-4" />
+                {lang === 'ar' ? 'واجهت مشكلة؟ أبلغ المتجر عبر الواتساب' : 'Having an issue? Report via WhatsApp'}
+                <MessageCircle className="w-4 h-4" />
+              </a>
             </div>
           </div>
         )}
