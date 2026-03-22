@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 
 interface AdminUser {
   id: number;
@@ -16,7 +14,6 @@ interface AdminAuthContextType {
   isAdminAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, displayName: string, inviteCode: string) => Promise<{ success: boolean; error?: string }>;
-  firebaseLogin: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -93,33 +90,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const firebaseLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-
-      const res = await fetch(`${API_BASE}/admin-auth/firebase-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-      const data = await res.json();
-      if (!res.ok) return { success: false, error: data.error };
-      setToken(data.token);
-      setAdmin(data.admin);
-      localStorage.setItem('admin_token', data.token);
-      return { success: true };
-    } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        return { success: false, error: 'Sign-in cancelled' };
-      }
-      return { success: false, error: err.message || 'Firebase login failed' };
-    }
-  };
-
   return (
-    <AdminAuthContext.Provider value={{ admin, token, loading, isAdminAuthenticated: !!admin, login, register, firebaseLogin, logout }}>
+    <AdminAuthContext.Provider value={{ admin, token, loading, isAdminAuthenticated: !!admin, login, register, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );
