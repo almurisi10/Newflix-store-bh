@@ -13,7 +13,7 @@ import { useAdminAuth } from '@/contexts/AdminAuthContext';
 export function Navbar() {
   const { t, lang } = useLanguage();
   const { itemCount, setIsCartOpen } = useCart();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { isAdminAuthenticated } = useAdminAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [location] = useLocation();
@@ -74,7 +74,7 @@ export function Navbar() {
                   <Link href="/account/wishlist" className="px-4 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2">
                     <Heart className="w-4 h-4" /> {lang === 'ar' ? 'المفضلة' : 'Wishlist'}
                   </Link>
-                  {(isAdmin || isAdminAuthenticated) && (
+                  {isAdminAuthenticated && (
                     <Link href="/admin" className="px-4 py-2 text-sm rounded-lg hover:bg-muted flex items-center gap-2">
                       <Shield className="w-4 h-4" /> {t('dashboard')}
                     </Link>
@@ -225,7 +225,7 @@ export function Navbar() {
                           </Link>
                         ))}
                       </div>
-                      {(isAdmin || isAdminAuthenticated) && (
+                      {isAdminAuthenticated && (
                         <Link href="/admin" onClick={close}>
                           <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-foreground hover:bg-muted/80 transition-all border border-transparent">
                             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">

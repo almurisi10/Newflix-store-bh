@@ -6,7 +6,6 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,11 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await firebaseSignOut(auth);
   };
 
-  // Simplified admin check - in production use custom claims
-  const isAdmin = user?.email?.includes('@newflix.com') || user?.email === 'admin@admin.com';
-
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
