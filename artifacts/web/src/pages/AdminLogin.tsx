@@ -16,11 +16,9 @@ export default function AdminLogin() {
   const [newPassword, setNewPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [resetCode, setResetCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [signupDisabled, setSignupDisabled] = useState(false);
-  const [resetStep, setResetStep] = useState<'email' | 'code'>('email');
 
   useEffect(() => {
     if (isAdminAuthenticated && !loading) {
@@ -63,48 +61,28 @@ export default function AdminLogin() {
     setSubmitting(false);
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
-    if (resetStep === 'email') {
-      try {
-        const res = await fetch(`${apiBase}/admin-auth/forgot-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          toast.success(lang === 'ar' ? 'تم إرسال رمز إعادة التعيين' : 'Reset code sent');
-          setResetStep('code');
-        } else {
-          toast.error(data.error || (lang === 'ar' ? 'خطأ' : 'Error'));
-        }
-      } catch {
-        toast.error(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
+    try {
+      const res = await fetch(`${apiBase}/admin-auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, inviteCode, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(lang === 'ar' ? 'تم تغيير كلمة المرور بنجاح' : 'Password changed successfully');
+        setIsForgotPassword(false);
+        setNewPassword('');
+        setInviteCode('');
+      } else {
+        toast.error(data.error || (lang === 'ar' ? 'خطأ' : 'Error'));
       }
-    } else {
-      try {
-        const res = await fetch(`${apiBase}/admin-auth/reset-password`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, code: resetCode, newPassword }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          toast.success(lang === 'ar' ? 'تم تغيير كلمة المرور بنجاح' : 'Password changed successfully');
-          setIsForgotPassword(false);
-          setResetStep('email');
-          setResetCode('');
-          setNewPassword('');
-        } else {
-          toast.error(data.error || (lang === 'ar' ? 'خطأ' : 'Error'));
-        }
-      } catch {
-        toast.error(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
-      }
+    } catch {
+      toast.error(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error');
     }
 
     setSubmitting(false);
@@ -138,77 +116,70 @@ export default function AdminLogin() {
             <>
               <div className="text-center mb-6">
                 <h2 className="text-lg font-bold">
-                  {lang === 'ar' ? 'استعادة كلمة المرور' : 'Reset Password'}
+                  {lang === 'ar' ? 'إعادة تعيين كلمة المرور' : 'Reset Password'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {resetStep === 'email'
-                    ? (lang === 'ar' ? 'أدخل بريدك الإلكتروني لإرسال رمز إعادة التعيين' : 'Enter your email to receive a reset code')
-                    : (lang === 'ar' ? 'أدخل الرمز وكلمة المرور الجديدة' : 'Enter the code and your new password')
-                  }
+                  {lang === 'ar' ? 'أدخل بريدك الإلكتروني ورمز الدعوة وكلمة المرور الجديدة' : 'Enter your email, invite code, and new password'}
                 </p>
               </div>
 
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                {resetStep === 'email' ? (
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">
-                      {lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-3 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                        required
-                      />
-                    </div>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-3 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      required
+                    />
                   </div>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        {lang === 'ar' ? 'رمز إعادة التعيين' : 'Reset Code'}
-                      </label>
-                      <div className="relative">
-                        <KeyRound className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          value={resetCode}
-                          onChange={(e) => setResetCode(e.target.value)}
-                          className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-3 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary text-center tracking-[0.5em] font-mono text-lg"
-                          required
-                          maxLength={6}
-                          placeholder="000000"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
-                      </label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {lang === 'ar' ? 'رمز الدعوة' : 'Invite Code'}
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-3 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      required
+                      placeholder={lang === 'ar' ? 'أدخل رمز الدعوة للتحقق' : 'Enter invite code to verify'}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">
+                    {lang === 'ar' ? 'كلمة المرور الجديدة' : 'New Password'}
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 rtl:right-3 rtl:left-auto top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-10 rtl:pr-10 rtl:pl-3 pr-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 rtl:left-3 rtl:right-auto top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
 
                 <button
                   type="submit"
@@ -220,10 +191,7 @@ export default function AdminLogin() {
                   ) : (
                     <>
                       <ArrowRight className="w-4 h-4" />
-                      {resetStep === 'email'
-                        ? (lang === 'ar' ? 'إرسال رمز التعيين' : 'Send Reset Code')
-                        : (lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password')
-                      }
+                      {lang === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}
                     </>
                   )}
                 </button>
@@ -231,7 +199,7 @@ export default function AdminLogin() {
 
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => { setIsForgotPassword(false); setResetStep('email'); }}
+                  onClick={() => { setIsForgotPassword(false); setInviteCode(''); setNewPassword(''); }}
                   className="text-sm text-primary hover:underline"
                 >
                   {lang === 'ar' ? 'العودة لتسجيل الدخول' : 'Back to login'}

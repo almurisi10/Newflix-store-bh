@@ -189,44 +189,16 @@ router.post("/admin-auth/firebase-login", async (req, res): Promise<void> => {
   }
 });
 
-const resetCodes = new Map<string, { code: string; expires: number }>();
-
-router.post("/admin-auth/forgot-password", async (req, res): Promise<void> => {
-  const { email } = req.body;
-
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
-    return;
-  }
-
-  const [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
-  if (!existingAdmin) {
-    res.json({ message: "If an account exists, a reset code has been generated" });
-    return;
-  }
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  resetCodes.set(email, { code, expires: Date.now() + 15 * 60 * 1000 });
-
-  console.log(`[ADMIN RESET] Code for ${email}: ${code}`);
-
-  await db.insert(adminActivityLogsTable).values({
-    adminEmail: email,
-    action: "password_reset_requested",
-    entityType: "admin_user",
-    entityId: String(existingAdmin.id),
-    details: { code },
-    ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
-  });
-
-  res.json({ message: "Reset code generated", code });
-});
-
 router.post("/admin-auth/reset-password", async (req, res): Promise<void> => {
-  const { email, code, newPassword } = req.body;
+  const { email, inviteCode, newPassword } = req.body;
 
-  if (!email || !code || !newPassword) {
-    res.status(400).json({ error: "Email, code, and new password are required" });
+  if (!email || !inviteCode || !newPassword) {
+    res.status(400).json({ error: "Email, invite code, and new password are required" });
+    return;
+  }
+
+  if (!INVITE_CODE || inviteCode !== INVITE_CODE) {
+    res.status(403).json({ error: "Invalid invite code" });
     return;
   }
 
@@ -235,30 +207,22 @@ router.post("/admin-auth/reset-password", async (req, res): Promise<void> => {
     return;
   }
 
-  const stored = resetCodes.get(email);
-  if (!stored || stored.code !== code || Date.now() > stored.expires) {
-    res.status(400).json({ error: "Invalid or expired reset code" });
+  const [existingAdmin] = await db.select().from(adminUsersTable).where(eq(adminUsersTable.email, email));
+  if (!existingAdmin) {
+    res.status(404).json({ error: "No admin account found with this email" });
     return;
   }
-
-  resetCodes.delete(email);
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  const result = await db.update(adminUsersTable)
+  await db.update(adminUsersTable)
     .set({ passwordHash })
-    .where(eq(adminUsersTable.email, email))
-    .returning();
-
-  if (result.length === 0) {
-    res.status(404).json({ error: "Admin not found" });
-    return;
-  }
+    .where(eq(adminUsersTable.email, email));
 
   await db.insert(adminActivityLogsTable).values({
     adminEmail: email,
-    action: "password_reset_completed",
+    action: "password_reset",
     entityType: "admin_user",
-    entityId: String(result[0]!.id),
+    entityId: String(existingAdmin.id),
     details: {},
     ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
   });
