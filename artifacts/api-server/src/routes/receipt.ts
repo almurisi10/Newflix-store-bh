@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
 import { db, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable, walletTable, couponsTable } from "@workspace/db";
 import multer from "multer";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
 import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
@@ -91,12 +91,13 @@ async function verifyReceipt(filePath: string, order: any) {
     return { verified: false, reason: "AI service not configured", confidence: 0 };
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  (genAI as any).apiClient = undefined;
-  const model = genAI.getGenerativeModel(
-    { model: "gemini-2.5-flash" },
-    { baseUrl: baseUrl }
-  );
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      apiVersion: "",
+      baseUrl,
+    },
+  });
 
   const imageData = fs.readFileSync(filePath);
   const base64Image = imageData.toString("base64");
@@ -130,12 +131,21 @@ Respond in JSON format ONLY:
 }`;
 
   try {
-    const result = await model.generateContent([
-      { text: prompt },
-      { inlineData: { mimeType, data: base64Image } },
-    ]);
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType, data: base64Image } },
+          ],
+        },
+      ],
+      config: { maxOutputTokens: 8192 },
+    });
 
-    const responseText = result.response.text();
+    const responseText = result.text ?? "";
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);

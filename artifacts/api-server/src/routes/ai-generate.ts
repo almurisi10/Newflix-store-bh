@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 const router: IRouter = Router();
 
@@ -14,11 +14,13 @@ router.post("/ai/generate-product-description", async (req, res): Promise<void> 
     return;
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel(
-    { model: "gemini-2.5-flash" },
-    { baseUrl }
-  );
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      apiVersion: "",
+      baseUrl,
+    },
+  });
 
   const prompt = `Generate product descriptions and features for a digital product in an e-commerce store in Bahrain.
 
@@ -39,8 +41,12 @@ Generate the following in JSON format:
 Make descriptions compelling and professional. Focus on digital product benefits like instant delivery, genuine products, and Bahrain market.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { maxOutputTokens: 8192 },
+    });
+    const text = result.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       res.json(JSON.parse(jsonMatch[0]));
