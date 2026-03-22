@@ -89,9 +89,13 @@ artifacts-monorepo/
 5. If verified → auto-delivers codes, awards loyalty points, status: `paid`
 6. If not verified → stays `pending`, admin can manually confirm/reject
 7. Delivery modes:
-   - `multi_code`: Unique code per purchase from inventory
+   - `multi_code`: Unique code per purchase from inventory (atomic single-row assignment with `FOR UPDATE SKIP LOCKED`)
    - `single_code`: Same code for all customers
    - `whatsapp_manual`: Manual delivery via WhatsApp
+8. Code assignment is atomic: each code assigned one at a time using `LIMIT 1 FOR UPDATE SKIP LOCKED` to prevent duplicate assignment
+9. Both confirm-payment and confirmOrderDelivery are idempotent (skip if already paid/delivered) and wrapped in DB transactions
+10. If codes run out, customer sees "بانتظار إتمام طلبك" / "Awaiting order completion" with pending placeholders
+11. Delivery API returns `{ items: [...], hasPendingCodes: boolean }` (backward compatible with old array format on frontend)
 
 ## Frontend Pages
 

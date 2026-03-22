@@ -285,13 +285,15 @@ export default function MyOrders() {
 }
 
 function OrderDelivery({ orderId, firebaseUid, lang }: { orderId: number; firebaseUid?: string; lang: string }) {
-  const { data: delivery, isLoading } = useQuery({
+  const { data: deliveryResponse, isLoading } = useQuery({
     queryKey: ['order-delivery', orderId],
     queryFn: async () => {
       const url = firebaseUid ? `${API}/user/orders/${orderId}/delivery?firebaseUid=${firebaseUid}` : `${API}/user/orders/${orderId}/delivery`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed');
-      return res.json();
+      const data = await res.json();
+      if (Array.isArray(data)) return { items: data, hasPendingCodes: false };
+      return data;
     },
   });
 
@@ -301,6 +303,9 @@ function OrderDelivery({ orderId, firebaseUid, lang }: { orderId: number; fireba
   };
 
   if (isLoading) return <div className="animate-pulse h-16 bg-muted rounded-xl" />;
+
+  const delivery = deliveryResponse?.items || [];
+  const hasPendingCodes = deliveryResponse?.hasPendingCodes || false;
 
   if (!delivery || delivery.length === 0) {
     return (
@@ -318,9 +323,14 @@ function OrderDelivery({ orderId, firebaseUid, lang }: { orderId: number; fireba
         <h4 className="font-bold text-sm">{lang === 'ar' ? 'منتجاتك الرقمية:' : 'Your Digital Products:'}</h4>
       </div>
       {delivery.map((item: any, idx: number) => (
-        <div key={idx} className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl p-4">
+        <div key={idx} className={`rounded-xl p-4 ${item.deliveryData === 'PENDING_STOCK' ? 'bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800' : 'bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800'}`}>
           <p className="text-xs text-muted-foreground mb-1">{lang === 'ar' ? item.titleAr : item.titleEn}</p>
-          {item.deliveryData === 'WHATSAPP_DELIVERY' ? (
+          {item.deliveryData === 'PENDING_STOCK' ? (
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <Hourglass className="w-4 h-4" />
+              <span className="text-sm font-medium">{lang === 'ar' ? 'بانتظار إتمام طلبك - سيتم توفير الكود قريباً' : 'Awaiting order completion - code will be available soon'}</span>
+            </div>
+          ) : item.deliveryData === 'WHATSAPP_DELIVERY' ? (
             <div className="flex items-center gap-2">
               <MessageCircle className="w-4 h-4 text-green-500" />
               <span className="text-sm">{lang === 'ar' ? 'سيتم التسليم عبر الواتساب' : 'Will be delivered via WhatsApp'}</span>
@@ -341,6 +351,20 @@ function OrderDelivery({ orderId, firebaseUid, lang }: { orderId: number; fireba
           )}
         </div>
       ))}
+      {hasPendingCodes && (
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">
+          <Hourglass className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+          <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mb-1">
+            {lang === 'ar' ? 'بانتظار إتمام طلبك' : 'Awaiting Order Completion'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {lang === 'ar' ? 'بعض الأكواد غير متوفرة حالياً وسيتم توفيرها قريباً. تواصل معنا للمساعدة.' : 'Some codes are currently unavailable and will be provided soon. Contact us for assistance.'}
+          </p>
+          <a href="https://wa.me/97337127483" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium mt-2">
+            <MessageCircle className="w-4 h-4" /> {lang === 'ar' ? 'تواصل عبر الواتساب' : 'Contact via WhatsApp'}
+          </a>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { db, ordersTable, productsTable, inventoryItemsTable } from "@workspace/db";
+import { db, pool, ordersTable, productsTable, inventoryItemsTable } from "@workspace/db";
 import {
   ListOrdersQueryParams,
   ListOrdersResponse,
@@ -181,35 +181,56 @@ router.post("/orders/:id/confirm-payment", requireAdmin as any, async (req: Admi
     return;
   }
 
-  const items = order.items as any[];
-  for (const item of items) {
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
-    if (!product) continue;
-
-    if (["code", "account", "link"].includes(product.productType)) {
-      for (let i = 0; i < item.quantity; i++) {
-        const [inventoryItem] = await db.update(inventoryItemsTable)
-          .set({ status: "delivered", orderId: order.id, deliveredAt: new Date() })
-          .where(and(
-            eq(inventoryItemsTable.productId, product.id),
-            eq(inventoryItemsTable.status, "available")
-          ))
-          .returning();
-
-        if (!inventoryItem) {
-          req.log.warn({ productId: product.id }, "No available inventory item");
-        }
-      }
-
-      const availableCount = await db.select({ count: sql<number>`count(*)::int` })
-        .from(inventoryItemsTable)
-        .where(and(eq(inventoryItemsTable.productId, product.id), eq(inventoryItemsTable.status, "available")));
-      await db.update(productsTable).set({ stock: availableCount[0]?.count ?? 0 }).where(eq(productsTable.id, product.id));
-    }
+  if (order.status === "paid" || order.status === "delivered") {
+    res.json(ConfirmPaymentResponse.parse(order));
+    return;
   }
 
-  const [updatedOrder] = await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, params.data.id)).returning();
-  res.json(ConfirmPaymentResponse.parse(updatedOrder));
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const items = order.items as any[];
+    for (const item of items) {
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
+      if (!product) continue;
+
+      if (["code", "account", "link"].includes(product.productType)) {
+        for (let i = 0; i < item.quantity; i++) {
+          const result = await client.query(
+            `UPDATE inventory_items
+             SET status = 'delivered', order_id = $1, delivered_at = NOW()
+             WHERE id = (
+               SELECT id FROM inventory_items
+               WHERE product_id = $2 AND status = 'available'
+               LIMIT 1
+               FOR UPDATE SKIP LOCKED
+             )
+             RETURNING *`,
+            [order.id, product.id]
+          );
+
+          if (result.rows.length === 0) {
+            req.log.warn({ productId: product.id }, "No available inventory item");
+          }
+        }
+
+        const availableCount = await db.select({ count: sql<number>`count(*)::int` })
+          .from(inventoryItemsTable)
+          .where(and(eq(inventoryItemsTable.productId, product.id), eq(inventoryItemsTable.status, "available")));
+        await db.update(productsTable).set({ stock: availableCount[0]?.count ?? 0 }).where(eq(productsTable.id, product.id));
+      }
+    }
+
+    const [updatedOrder] = await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, params.data.id)).returning();
+    await client.query("COMMIT");
+    res.json(ConfirmPaymentResponse.parse(updatedOrder));
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 router.get("/user/orders", async (req, res): Promise<void> => {
@@ -252,6 +273,7 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
 
   const deliveryItems: any[] = [];
   const items = order.items as any[];
+  let hasPendingCodes = false;
 
   for (const item of items) {
     const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
@@ -283,6 +305,9 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
           eq(inventoryItemsTable.status, "delivered")
         ));
 
+      const requestedQty = item.quantity || 1;
+      const deliveredQty = inventoryItems.length;
+
       for (const inv of inventoryItems) {
         deliveryItems.push({
           productId: product.id,
@@ -294,10 +319,24 @@ router.get("/user/orders/:id/delivery", async (req, res): Promise<void> => {
           deliveredAt: inv.deliveredAt?.toISOString() ?? new Date().toISOString(),
         });
       }
+
+      if (deliveredQty < requestedQty) {
+        hasPendingCodes = true;
+        for (let i = 0; i < requestedQty - deliveredQty; i++) {
+          deliveryItems.push({
+            productId: product.id,
+            titleAr: product.titleAr,
+            titleEn: product.titleEn,
+            productType: product.productType,
+            deliveryData: "PENDING_STOCK",
+            deliveredAt: null,
+          });
+        }
+      }
     }
   }
 
-  res.json(deliveryItems);
+  res.json({ items: deliveryItems, hasPendingCodes });
 });
 
 export default router;

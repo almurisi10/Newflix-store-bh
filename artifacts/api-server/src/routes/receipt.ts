@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, sql } from "drizzle-orm";
-import { db, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable, walletTable, couponsTable } from "@workspace/db";
+import { db, pool, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable, walletTable, couponsTable } from "@workspace/db";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
@@ -190,50 +190,67 @@ async function confirmOrderDelivery(orderId: number) {
   if (!order) return;
   if (order.status === "paid" || order.status === "delivered") return;
 
-  const items = order.items as any[];
-  for (const item of items) {
-    const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
-    if (!product) continue;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-    if (product.deliveryMode === "single_code" && product.singleCodeValue) {
-      continue;
-    }
+    const items = order.items as any[];
+    for (const item of items) {
+      const [product] = await db.select().from(productsTable).where(eq(productsTable.id, item.productId));
+      if (!product) continue;
 
-    if (product.deliveryMode === "multi_code") {
-      for (let i = 0; i < (item.quantity || 1); i++) {
-        const [inventoryItem] = await db.update(inventoryItemsTable)
-          .set({ status: "delivered", orderId: order.id, deliveredAt: new Date() })
-          .where(and(
-            eq(inventoryItemsTable.productId, product.id),
-            eq(inventoryItemsTable.status, "available")
-          ))
-          .returning();
-
-        if (!inventoryItem) break;
+      if (product.deliveryMode === "single_code" && product.singleCodeValue) {
+        continue;
       }
 
-      const availableCount = await db.select({ count: sql<number>`count(*)::int` })
-        .from(inventoryItemsTable)
-        .where(and(eq(inventoryItemsTable.productId, product.id), eq(inventoryItemsTable.status, "available")));
-      await db.update(productsTable).set({ stock: availableCount[0]?.count ?? 0 }).where(eq(productsTable.id, product.id));
+      if (product.deliveryMode === "multi_code") {
+        for (let i = 0; i < (item.quantity || 1); i++) {
+          const result = await client.query(
+            `UPDATE inventory_items
+             SET status = 'delivered', order_id = $1, delivered_at = NOW()
+             WHERE id = (
+               SELECT id FROM inventory_items
+               WHERE product_id = $2 AND status = 'available'
+               LIMIT 1
+               FOR UPDATE SKIP LOCKED
+             )
+             RETURNING *`,
+            [order.id, product.id]
+          );
+
+          if (result.rows.length === 0) break;
+        }
+
+        const availableCount = await db.select({ count: sql<number>`count(*)::int` })
+          .from(inventoryItemsTable)
+          .where(and(eq(inventoryItemsTable.productId, product.id), eq(inventoryItemsTable.status, "available")));
+        await db.update(productsTable).set({ stock: availableCount[0]?.count ?? 0 }).where(eq(productsTable.id, product.id));
+      }
     }
-  }
 
-  const loyaltyPoints = Math.floor(order.total);
-  if (loyaltyPoints > 0) {
-    await db.insert(loyaltyPointsTable).values({
-      firebaseUid: order.firebaseUid,
-      points: loyaltyPoints,
-      type: "earn",
-      description: `Order #${orderId}`,
-      orderId: orderId,
-    });
-  }
+    const loyaltyPoints = Math.floor(order.total);
+    if (loyaltyPoints > 0) {
+      await db.insert(loyaltyPointsTable).values({
+        firebaseUid: order.firebaseUid,
+        points: loyaltyPoints,
+        type: "earn",
+        description: `Order #${orderId}`,
+        orderId: orderId,
+      });
+    }
 
-  await db.update(ordersTable).set({
-    status: "paid",
-    loyaltyPointsEarned: loyaltyPoints,
-  }).where(eq(ordersTable.id, orderId));
+    await db.update(ordersTable).set({
+      status: "paid",
+      loyaltyPointsEarned: loyaltyPoints,
+    }).where(eq(ordersTable.id, orderId));
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 router.post("/orders/:id/admin-confirm", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
