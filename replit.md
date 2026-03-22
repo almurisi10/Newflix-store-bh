@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+**NEWFLIX STORE | نيوفلكس ستور** — Arabic-first bilingual digital e-commerce web app for Bahrain. pnpm workspace monorepo using TypeScript.
 
 ## Stack
 
@@ -15,82 +15,128 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React 19 + Vite + Tailwind CSS v4
+- **Auth**: Firebase Auth (project: `dukani-emq1m`)
+- **UI**: shadcn/ui components, Lucide icons, Framer Motion animations
+- **Routing**: wouter
+- **State**: React Query for API, React Context for cart/auth/language
+- **Theme**: next-themes (dark/light), CSS custom properties
+- **Fonts**: Noto Kufi Arabic (headings), Tajawal (body), Inter (English)
+- **Brand Colors**: Primary dark `#173E52`, Accent teal `#1FB5AC`, Success `#4BB874`
 
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server (port 8080)
+│   ├── mockup-sandbox/     # Component preview server
+│   └── web/                # NEWFLIX STORE React+Vite frontend (port 22333)
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/
+│   └── src/
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+├── tsconfig.json
+└── package.json
 ```
+
+## Frontend Architecture (`artifacts/web/`)
+
+```text
+src/
+├── App.tsx                 # Root with providers: Theme, QueryClient, Language, Auth, Cart
+├── index.css               # Tailwind + brand CSS variables (light/dark)
+├── main.tsx                # ReactDOM entry
+├── components/
+│   ├── Navbar.tsx           # Sticky header with RTL support, mobile drawer
+│   ├── Footer.tsx           # 4-column footer
+│   ├── ProductCard.tsx      # Product card with hover animation
+│   ├── CartDrawer.tsx       # Slide-out cart panel
+│   ├── LanguageSwitcher.tsx # AR/EN toggle
+│   ├── ThemeToggle.tsx      # Dark/light toggle (next-themes)
+│   ├── WhatsAppButton.tsx   # Floating WhatsApp button
+│   └── ui/                  # shadcn/ui primitives
+├── contexts/
+│   ├── LanguageContext.tsx   # AR/EN with translations, dir, localStorage
+│   ├── CartContext.tsx       # Cart items, quantities, localStorage persistence
+│   └── AuthContext.tsx       # Firebase Auth state, isAdmin check
+├── lib/
+│   ├── firebase.ts          # Firebase app initialization
+│   └── utils.ts             # cn() utility
+└── pages/
+    ├── Home.tsx              # Hero, features, categories, featured products, CTA
+    ├── Shop.tsx              # Product grid with sidebar filters, search
+    ├── ProductDetail.tsx     # Full product page with gallery, quantity selector
+    ├── Cart.tsx              # Cart page with coupon code support
+    ├── Checkout.tsx          # Checkout form with order summary
+    ├── Auth.tsx              # Login/register with Firebase
+    ├── AdminDashboard.tsx    # Admin stats dashboard
+    └── not-found.tsx         # 404 page
+```
+
+## API Routes (`artifacts/api-server/`)
+
+All routes mounted at `/api`:
+- `GET /api/healthz` — health check
+- `GET/POST /api/products` — list/create products
+- `GET/PATCH/DELETE /api/products/:id` — single product CRUD
+- `GET/POST /api/categories` — list/create categories
+- `PATCH/DELETE /api/categories/:id` — single category CRUD
+- `POST /api/orders` — create order (with digital delivery)
+- `GET /api/orders` — list orders (admin)
+- `GET /api/orders/:id` — single order
+- `PATCH /api/orders/:id/status` — update order status
+- `POST /api/orders/:id/confirm-payment` — confirm payment
+- `GET /api/orders/user/:firebaseUid` — user's orders
+- `GET /api/orders/:id/delivery` — get delivery items
+- `POST /api/coupons/validate` — validate coupon code
+- `GET/POST /api/coupons` — list/create coupons
+- `GET /api/admin/stats` — admin dashboard stats
+- `GET/PUT /api/homepage-sections` — homepage sections CRUD
+- `GET/POST /api/popups` — popups management
+- `PATCH /api/popups/:id` — update popup
+- `GET /api/inventory/:productId` — inventory items
+- `POST /api/inventory/:productId` — add inventory items
+- `POST /api/seed` — seed demo data
+
+## Database Schema
+
+Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`
+
+## Key Configuration
+
+- **Firebase**: apiKey `AIzaSyAQiWBcLbBVneGBSRmoTsFSsYJWUWX9_gQ`, project `dukani-emq1m`
+- **Admin check**: `email.includes('@newflix.com') || email === 'admin@admin.com'`
+- **WhatsApp**: `https://wa.me/97337127483`
+- **Instagram**: `@NEWFLIX.ADS`
+- **Coupon codes**: `WELCOME10` (10%), `NEWFLIX20` (20%)
+- **Default language**: Arabic (RTL)
+- **Default theme**: Light
 
 ## TypeScript & Composite Projects
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references.
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+- **Always typecheck from the root** — run `pnpm run typecheck`
+- **`emitDeclarationOnly`** — only emit `.d.ts` files during typecheck
+- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array
 
 ## Root Scripts
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
+- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly`
 
-## Packages
+## Codegen
 
-### `artifacts/api-server` (`@workspace/api-server`)
+- Run codegen: `pnpm --filter @workspace/api-spec run codegen`
+- Generates React Query hooks → `lib/api-client-react/src/generated/`
+- Generates Zod schemas → `lib/api-zod/src/generated/`
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+## Seed Data
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+Run `curl -X POST http://localhost:8080/api/seed` to populate demo data (8 products, 6 categories, coupons, homepage sections, popup).

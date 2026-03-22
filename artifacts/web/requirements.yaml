@@ -1,0 +1,25 @@
+packages:
+  "firebase": "Authentication and user management"
+  "framer-motion": "Animations and page transitions"
+  "recharts": "Admin dashboard analytics and charts"
+  "embla-carousel-react": "Product galleries and homepage sliders"
+  "embla-carousel-autoplay": "Autoplay plugin for sliders"
+  "lucide-react": "Icons"
+  "clsx": "Utility for conditional classNames"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/web/public/images/logo-dark.png"
+    description: "Premium minimal text logo saying 'NEWFLIX' in English and 'نيوفلكس' in Arabic, dark blue color, transparent background"
+    aspect_ratio: "4:3"
+  - path: "artifacts/web/public/images/logo-light.png"
+    description: "Premium minimal text logo saying 'NEWFLIX' in English and 'نيوفلكس' in Arabic, white color, transparent background"
+    aspect_ratio: "4:3"
+  - path: "artifacts/web/public/images/hero-abstract.png"
+    description: "Abstract premium background with elegant flowing waves in teal (#1FB5AC) and dark blue (#173E52) gradients, very subtle, great for a modern e-commerce hero section"
+    aspect_ratio: "16:9"
+
+notes:
+  - Firebase config requires standard web setup
+  - Using wouter for routing
+  - Leveraging @workspace/api-client-react for TanStack Query hooks

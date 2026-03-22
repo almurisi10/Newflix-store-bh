@@ -1,0 +1,398 @@
+You are a senior full-stack engineer, UI/UX designer, Arabic-first product architect, and Firebase developer.
+
+Communicate with me in Arabic, but keep source code, file names, package names, and technical identifiers in English where needed.
+
+Build a production-ready, bilingual, Arabic-first digital e-commerce website with a complete admin dashboard for:
+
+Store Name: NEWFLIX STORE | نيوفلكس ستور
+Country: Bahrain
+WhatsApp: 37127483
+Instagram: NEWFLIX.ADS
+
+Main goal:
+Create a realistic, premium, highly organized, fully responsive digital store with a beautiful interactive homepage, advanced admin panel, complete Firebase integration, advanced search and filtering, offers and discounts, popup marketing tools, and secure automatic digital delivery after payment confirmation.
+
+Important global rules:
+- The entire website and admin panel must support Arabic and English from end to end.
+- Arabic must be the default visible language.
+- Add a language switcher for Arabic/English.
+- Support full RTL/LTR switching correctly.
+- Support light mode and dark mode with a theme toggle.
+- All visible UI text should be Arabic by default, with English translations available.
+- Never allow text color to blend into the background.
+- No text, images, buttons, cards, or sections should overlap or appear randomly placed.
+- All spacing, alignment, padding, margin, border radius, sizes, heights, widths, and positions must be carefully calculated and visually balanced.
+- Use responsive layouts that adapt automatically to phone, iPad, tablet, laptop, and desktop widths/heights.
+- Avoid fixed heights that break Arabic content. Prefer flexible layouts, CSS grid/flex, clamp(), proper wrapping, and fluid containers.
+- Keep the design premium, clean, elegant, and realistic.
+
+Preferred tech stack:
+- Next.js (App Router) + TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Framer Motion for subtle animations
+- Firebase Auth
+- Firebase Realtime Database as the main database
+- Firebase Storage for images, videos, and downloadable files
+- Secure server-side routes/actions for admin-only actions and payment confirmation flows
+- Recharts for charts and analytics
+- next-intl or a clean bilingual i18n setup
+- Use clean component architecture and reusable modules
+
+Typography:
+- Main Arabic headings: Noto Kufi Arabic Bold
+- Arabic body text: Tajawal (or another elegant Arabic font that pairs well and remains highly readable)
+- English font should visually match the Arabic style
+- Make Arabic typography polished, balanced, and premium
+
+Design direction:
+- Use a light, eye-comfortable premium design
+- Use only 2 to 4 coordinated colors maximum
+- Base palette:
+  - Primary text / brand dark color: #173E52
+  - Accent color: #1FB5AC
+  - Secondary accent / success color: #4BB874
+  - Backgrounds: #F8FAFC and #FFFFFF
+- Use soft borders, subtle shadows, rounded corners, clean cards, and clear visual hierarchy
+- If text appears on top of images or videos, add overlays/gradients so readability is always excellent
+- Do not overuse colors
+- Keep everything harmonious, modern, and professional
+
+Business type:
+This is a digital products store. Seed realistic demo data suitable for a store that sells digital products/services such as subscriptions, digital accounts, files, codes, licenses, links, and similar items.
+
+Public site structure:
+1) Header / navigation
+- Sticky header
+- Logo / store name
+- Main nav links
+- Search bar
+- Cart icon
+- Login / account button
+- Language switcher
+- Theme toggle
+- WhatsApp quick contact button
+
+2) Interactive homepage
+Build a premium interactive homepage with:
+- Hero section with animated slider/carousel
+- Support hero images and hero videos
+- Clear CTA buttons
+- Main categories section with professional category cards
+- Best sellers section
+- New arrivals section
+- Featured products section
+- Offers / discounts / flash deals section
+- Highlighted digital services section
+- Promo banners
+- Trust badges
+- Customer reviews/testimonials
+- FAQ preview
+- Call-to-action sections
+- Newsletter / announcement area if useful
+- Clean premium footer
+
+3) Popup and notifications system
+Create a first-visit popup / modal system:
+- Show on page load when active
+- Popup can contain image or video thumbnail
+- Add close X button
+- Clicking the popup image/button should redirect to any configured internal route or external URL
+- Admin must be able to control:
+  - active/inactive
+  - popup title
+  - description
+  - CTA text
+  - upload image
+  - upload video thumbnail
+  - target path/URL
+  - schedule dates
+  - show once / always
+  - max impressions
+  - audience visibility rules
+- Add announcement bar and toast notifications for offers and important notices
+
+4) Shop experience
+Build a professional store browsing experience:
+- Global search with instant suggestions
+- Arabic and English search support
+- Recent searches
+- Empty-state handling
+- Smart filtering and sorting
+- Grid/list product view
+- Beautiful product cards
+- Category pages
+- Product detail pages
+- Related products
+- Offer badges
+- Product notes
+- Optional product video
+- Gallery
+- Availability and delivery type
+
+Advanced filters:
+- category
+- subcategory
+- price range
+- availability
+- product type
+- discount / offer
+- featured
+- best seller
+- newest
+- sort by price ascending/descending
+
+5) Cart and checkout
+- Add to cart
+- Update quantities when relevant
+- Apply coupon codes
+- Order summary
+- Clean checkout flow
+- Require login before final digital delivery, or implement a safe account-creation flow during checkout
+- Order statuses: pending, unpaid, paid, failed, cancelled, refunded
+
+6) Customer account area
+- Register
+- Login
+- Forgot password
+- Profile settings
+- Order history
+- Delivered files / credentials / codes / links
+- Invoices or order details
+- Notification center
+- Wishlist
+- Recently viewed items
+
+Product system requirements:
+Each product must support:
+- title_ar
+- title_en
+- short_description_ar
+- short_description_en
+- full_description_ar
+- full_description_en
+- main image
+- gallery
+- optional video
+- category IDs
+- subcategory IDs
+- tags
+- price
+- compare price
+- discount
+- badges
+- notes
+- SKU
+- featured flag
+- bestseller flag
+- active/inactive
+- stock / availability
+- SEO fields
+- publish date
+- delivery type
+- product type
+
+A product must be assignable to one or more categories/subcategories.
+
+Support these product types:
+- downloadable file
+- external link
+- unique code / license key
+- formatted text / instructions
+- unique account credentials from inventory pool
+- manual service fulfillment
+
+Admin dashboard:
+Create a complete bilingual admin dashboard with proper protected routes and role-based access.
+
+Critical requirement:
+Every major public-site section must have a corresponding admin section to manage it.
+Also, the admin dashboard itself must have a dedicated settings section to manage:
+- dashboard widgets
+- visible cards
+- sidebar items
+- section order
+- role permissions
+- admin layout preferences
+
+Admin modules:
+- Dashboard overview
+- Homepage builder / section manager
+- Categories manager
+- Subcategories manager
+- Products manager
+- Offers / discounts / coupons manager
+- Popup manager
+- Announcements / notifications manager
+- Orders manager
+- Digital delivery manager
+- Inventory pools manager
+- Media library
+- Static pages manager
+- Header / footer / navigation manager
+- Theme / branding / fonts / colors manager
+- Language / translations manager
+- Admin users / roles / permissions manager
+- Admin dashboard settings manager
+- Reports / analytics manager
+- SEO / site settings manager
+- Contact/social/settings manager
+
+Homepage builder requirements:
+The admin must be able to:
+- enable/disable sections
+- reorder sections
+- edit titles/subtitles
+- upload images/videos
+- edit CTA buttons
+- choose linked routes
+- mark sections as featured
+- control offer banners
+- edit category highlights
+- edit hero slides
+- configure popup behavior
+- configure announcement bar text
+
+Digital delivery and unique inventory assignment:
+Implement a secure automatic fulfillment system after payment confirmation.
+
+Requirements:
+- Fulfillment must happen only after confirmed payment
+- If product type is file: give secure download access
+- If product type is link: deliver the link
+- If product type is code/key: deliver a unique unused code
+- If product type is text/manual: deliver formatted instructions
+- If product type is account credentials: deliver the next available unique account from that product inventory pool
+
+Bulk inventory management:
+- Allow admin to upload many inventory items per product
+- Example: 100 accounts, 100 codes, 100 links, 100 keys, etc.
+- Each customer must receive a different unused item
+- Example sequence:
+  - customer 1 gets account 1
+  - customer 2 gets account 2
+  - customer 3 gets account 3
+- Prevent duplicate delivery using atomic / transactional allocation logic in Firebase Realtime Database
+- Track inventory item status:
+  - available
+  - reserved
+  - delivered
+  - failed
+  - refunded
+- Save which order/user received which item and when
+- Show delivered data inside the customer account page and inside the admin order details page
+- Add delivery logs and error handling
+- When stock reaches zero, mark the product clearly as out of stock or unavailable
+
+Payments architecture:
+- Build the order system to be webhook-ready and provider-agnostic
+- Use secure server-side payment confirmation logic
+- Fulfillment must trigger only after verified payment confirmation
+- Add a clean manual admin confirmation fallback if a payment gateway is not configured yet
+- Structure the code so a Bahrain-friendly payment gateway can be added later without rewriting the store logic
+
+Firebase integration:
+Use this exact client-side Firebase config where appropriate:
+
+import { initializeApp } from "firebase/app";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAQiWBcLbBVneGBSRmoTsFSsYJWUWX9_gQ",
+  authDomain: "dukani-emq1m.firebaseapp.com",
+  databaseURL: "https://dukani-emq1m-default-rtdb.firebaseio.com",
+  projectId: "dukani-emq1m",
+  storageBucket: "dukani-emq1m.firebasestorage.app",
+  messagingSenderId: "389471028986",
+  appId: "1:389471028986:web:cc567736d47ef97067eb43"
+};
+
+Firebase rules:
+- Use Firebase Auth for authentication
+- Use Firebase Realtime Database as the primary live database
+- Use Firebase Storage for product media, downloadable files, and popup assets
+- Use secure server-side admin logic for protected actions
+- Put sensitive server credentials in Replit Secrets / environment variables, not in public client code
+- Provide a sensible database schema
+- Include security rules
+- Include seed/demo data scripts
+- Ensure real-time sync between public site, admin, orders, inventory, popup system, and analytics
+
+Analytics dashboard:
+Create an interactive premium analytics dashboard connected to real data:
+- total products
+- total categories
+- total orders
+- total paid orders
+- revenue
+- recent orders
+- best-selling products
+- best-performing categories
+- low stock alerts
+- out-of-stock alerts
+- coupon performance
+- popup performance (views/clicks)
+- search insights
+- recent admin activity
+- fulfillment stats
+Use beautiful KPI cards, charts, and tables.
+
+Pages to include:
+- Home
+- Shop
+- Category page
+- Product details page
+- Offers / deals page
+- Cart
+- Checkout
+- Login
+- Register
+- Account dashboard
+- About us
+- Contact us
+- FAQ
+- Terms and conditions
+- Privacy policy
+- Refund policy
+- Admin login
+- Admin dashboard
+- 404 page
+- Empty states / no results states
+
+Accessibility, UX, and quality:
+- Fully responsive on all screen sizes
+- Proper contrast and readability
+- Keyboard accessibility
+- Visible focus states
+- Loading states
+- Error states
+- Success states
+- Smooth micro-interactions
+- Optimized performance
+- SEO-ready metadata
+- Clean URL structure
+- Basic structured data where useful
+- Proper image alt text
+
+Content rules:
+- All default visible content must be Arabic
+- English translations must exist
+- Do not leave random placeholder English text inside the Arabic UI
+- Keep the design elegant, organized, realistic, and premium
+- Do not generate messy spacing or overlapping layouts
+- Do not produce unfinished sections or broken routes
+- Make the site feel like a real launch-ready project, not a wireframe
+
+Output requirements:
+- Explain your progress and setup steps in Arabic
+- Generate the code in a clean production-style structure
+- Include reusable components
+- Include Firebase setup files
+- Include database schema suggestions
+- Include sample seed data
+- Include security rules
+- Include setup/run instructions
+- Include notes on where to edit products, categories, popup, offers, and homepage sections
+- Make smart decisions without asking repetitive questions
+
+Final expectation:
+Deliver a polished, premium, Arabic-first, bilingual digital store for NEWFLIX STORE with a professional interactive homepage, advanced search/filtering, offers and coupons, popup marketing tools, complete Firebase integration, a full admin dashboard where every site section is manageable, real analytics, and secure automatic digital fulfillment including unique account assignment after payment confirmation.
