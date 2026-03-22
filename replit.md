@@ -86,8 +86,8 @@ artifacts-monorepo/
 2. Customer transfers via BenefitPay to ESMAIL ALMURISI / 34490039
 3. Customer uploads receipt image
 4. AI (Gemini 2.5 Flash) verifies: name match, number match, amount match, fraud detection
-5. If verified → auto-delivers codes, awards loyalty points, status: `paid`
-6. If not verified → stays `pending`, admin can manually confirm/reject
+5. AI saves verification result but does NOT auto-deliver — `receiptStatus` stays "pending"
+6. Admin manually confirms/rejects via admin dashboard (`admin-confirm` action triggers delivery)
 7. Delivery modes:
    - `multi_code`: Unique code per purchase from inventory (atomic single-row assignment with `FOR UPDATE SKIP LOCKED`)
    - `single_code`: Same code for all customers
@@ -96,6 +96,9 @@ artifacts-monorepo/
 9. Both confirm-payment and confirmOrderDelivery are idempotent (skip if already paid/delivered) and wrapped in DB transactions
 10. If codes run out, customer sees "بانتظار إتمام طلبك" / "Awaiting order completion" with pending placeholders
 11. Delivery API returns `{ items: [...], hasPendingCodes: boolean }` (backward compatible with old array format on frontend)
+12. Duplicate receipt detection via SHA-256 `receipt_hash` column — rejects receipts already used in another order
+13. Admin can manually send codes to customers via `POST /orders/:id/manual-code` (validates product in order, prevents over-delivery)
+14. Adding new inventory via `POST /inventory/:productId` auto-fulfills pending paid orders (FIFO, transactional, atomic)
 
 ## Frontend Pages
 
@@ -166,6 +169,7 @@ All routes mounted at `/api`:
 - `POST /api/seed` — seed demo data
 - `GET /api/orders/:id/delivery-codes` — admin: list delivery codes for an order
 - `PATCH /api/orders/:orderId/delivery-codes/:codeId/toggle-hidden` — admin: toggle code visibility
+- `POST /api/orders/:id/manual-code` — admin: manually send a code to customer (validates product in order, prevents over-delivery)
 - `GET /api/uploads/*` — static file serving for uploaded receipts
 
 ## Database Schema

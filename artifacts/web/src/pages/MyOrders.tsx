@@ -72,10 +72,12 @@ export default function MyOrders() {
         body: formData,
       });
       const result = await res.json();
-      if (result.verified) {
-        toast.success(lang === 'ar' ? 'تم التحقق من الإيصال وتسليم المنتج! تحقق أدناه.' : 'Receipt verified! Product delivered below.');
+      if (!res.ok) {
+        toast.error(result.error || (lang === 'ar' ? 'خطأ في رفع الإيصال' : 'Error uploading receipt'));
+      } else if (result.details?.duplicateOfOrder) {
+        toast.error(lang === 'ar' ? 'تم رفض الإيصال - هذا الإيصال مستخدم سابقاً في طلب آخر' : 'Receipt rejected - this receipt was already used for another order');
       } else {
-        toast.info(lang === 'ar' ? 'تم رفع الإيصال بنجاح - بانتظار التأكيد' : 'Receipt uploaded - Awaiting confirmation');
+        toast.info(lang === 'ar' ? 'تم رفع الإيصال بنجاح - بانتظار تأكيد الإدارة' : 'Receipt uploaded - Awaiting admin confirmation');
       }
       refetch();
     } catch { toast.error(lang === 'ar' ? 'خطأ في الرفع' : 'Upload error'); }

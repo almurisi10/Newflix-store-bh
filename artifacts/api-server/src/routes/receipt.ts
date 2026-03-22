@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, ne } from "drizzle-orm";
 import { db, pool, ordersTable, productsTable, inventoryItemsTable, loyaltyPointsTable, walletTable, couponsTable } from "@workspace/db";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { requireAdmin, type AdminRequest } from "../middleware/adminAuth";
 
 const router: IRouter = Router();
@@ -47,10 +48,42 @@ router.post("/orders/:id/upload-receipt", upload.single("receipt"), async (req, 
     return;
   }
 
+  const fileBuffer = fs.readFileSync(req.file.path);
+  const receiptHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+
+  const duplicateOrders = await db.select({ id: ordersTable.id, orderNumber: ordersTable.orderNumber })
+    .from(ordersTable)
+    .where(and(
+      eq(ordersTable.receiptHash, receiptHash),
+      ne(ordersTable.id, orderId)
+    ));
+
+  if (duplicateOrders.length > 0) {
+    await db.update(ordersTable).set({
+      receiptImage: `/api/uploads/${req.file.filename}`,
+      receiptStatus: "rejected",
+      receiptHash,
+      aiVerificationResult: {
+        verified: false,
+        reason: `تم رفض الإيصال - هذا الإيصال مستخدم سابقاً في طلب آخر #${duplicateOrders[0].orderNumber || duplicateOrders[0].id}`,
+        duplicateOfOrder: duplicateOrders[0].id,
+      },
+    }).where(eq(ordersTable.id, orderId));
+
+    res.json({
+      success: true,
+      verified: false,
+      details: { message: "Duplicate receipt detected - this receipt was already used for another order", duplicateOfOrder: duplicateOrders[0].id },
+      receiptImage: `/api/uploads/${req.file.filename}`,
+    });
+    return;
+  }
+
   const receiptPath = `/api/uploads/${req.file.filename}`;
 
   await db.update(ordersTable).set({
     receiptImage: receiptPath,
+    receiptHash,
     receiptStatus: "pending",
   }).where(eq(ordersTable.id, orderId));
 
@@ -58,18 +91,14 @@ router.post("/orders/:id/upload-receipt", upload.single("receipt"), async (req, 
     const verificationResult = await verifyReceipt(req.file.path, order);
 
     await db.update(ordersTable).set({
-      receiptStatus: verificationResult.verified ? "verified" : "rejected",
+      receiptStatus: "pending",
       aiVerificationResult: verificationResult,
     }).where(eq(ordersTable.id, orderId));
 
-    if (verificationResult.verified) {
-      await confirmOrderDelivery(orderId);
-    }
-
     res.json({
       success: true,
-      verified: verificationResult.verified,
-      details: verificationResult,
+      verified: false,
+      details: { ...verificationResult, message: "Receipt uploaded, awaiting admin confirmation" },
       receiptImage: receiptPath,
     });
   } catch (err: any) {
@@ -345,6 +374,65 @@ router.patch("/orders/:orderId/delivery-codes/:codeId/toggle-hidden", requireAdm
     .returning();
 
   res.json({ success: true, hidden: updated.hidden });
+});
+
+router.post("/orders/:id/manual-code", requireAdmin as any, async (req: AdminRequest, res): Promise<void> => {
+  const orderId = parseInt(req.params.id);
+  const { code, productId } = req.body;
+
+  if (!code || !productId) {
+    res.status(400).json({ error: "code and productId are required" });
+    return;
+  }
+
+  const pid = parseInt(productId);
+
+  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId));
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+
+  if (order.status === "cancelled" || order.status === "refunded") {
+    res.status(400).json({ error: "Cannot send code to a cancelled/refunded order" });
+    return;
+  }
+
+  const orderItems = order.items as any[];
+  const matchingItem = orderItems.find((item: any) => item.productId === pid);
+  if (!matchingItem) {
+    res.status(400).json({ error: "Product not found in this order" });
+    return;
+  }
+
+  const requestedQty = matchingItem.quantity || 1;
+  const existingDelivered = await db.select({ count: sql<number>`count(*)::int` })
+    .from(inventoryItemsTable)
+    .where(and(
+      eq(inventoryItemsTable.productId, pid),
+      eq(inventoryItemsTable.orderId, orderId),
+      eq(inventoryItemsTable.status, "delivered")
+    ));
+  const alreadyDelivered = existingDelivered[0]?.count ?? 0;
+
+  if (alreadyDelivered >= requestedQty) {
+    res.status(400).json({ error: "All codes for this product have already been delivered" });
+    return;
+  }
+
+  const [inserted] = await db.insert(inventoryItemsTable).values({
+    productId: pid,
+    data: code,
+    status: "delivered",
+    orderId: order.id,
+    deliveredAt: new Date(),
+  }).returning();
+
+  if (order.status !== "paid" && order.status !== "delivered") {
+    await db.update(ordersTable).set({ status: "paid" }).where(eq(ordersTable.id, orderId));
+  }
+
+  res.json({ success: true, inventoryItemId: inserted.id });
 });
 
 router.get("/loyalty/:firebaseUid", async (req, res): Promise<void> => {

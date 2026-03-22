@@ -711,6 +711,9 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
   });
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState('');
+  const [manualProductId, setManualProductId] = useState<number | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
 
   const handleAction = async (orderId: number, action: 'confirm' | 'reject') => {
     setConfirming(`${orderId}-${action}`);
@@ -720,6 +723,25 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
       refetch(); setSelectedOrder(null);
     } catch { toast.error('Error'); }
     setConfirming(null);
+  };
+
+  const handleSendManualCode = async (orderId: number) => {
+    if (!manualCode.trim() || !manualProductId) {
+      toast.error(lang === 'ar' ? 'أدخل الكود واختر المنتج' : 'Enter code and select product');
+      return;
+    }
+    setSendingCode(true);
+    try {
+      await adminFetch(`${API}/orders/${orderId}/manual-code`, token, {
+        method: 'POST',
+        body: JSON.stringify({ code: manualCode.trim(), productId: manualProductId }),
+      });
+      toast.success(lang === 'ar' ? 'تم إرسال الكود للعميل بنجاح' : 'Code sent to customer successfully');
+      setManualCode('');
+      setManualProductId(null);
+      refetch();
+    } catch { toast.error(lang === 'ar' ? 'خطأ في إرسال الكود' : 'Error sending code'); }
+    setSendingCode(false);
   };
 
   const ordersList = orders?.orders || orders || [];
@@ -779,6 +801,37 @@ function OrdersTab({ token, lang }: { token: string | null; lang: string }) {
               {(selectedOrder.status === 'paid' || selectedOrder.status === 'delivered') && (
                 <OrderDeliveryCodes orderId={selectedOrder.id} token={token} lang={lang} />
               )}
+              <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <p className="text-sm font-medium mb-3">{lang === 'ar' ? 'إرسال كود يدوي للعميل:' : 'Send manual code to customer:'}</p>
+                <div className="space-y-2">
+                  <select
+                    value={manualProductId || ''}
+                    onChange={e => setManualProductId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="">{lang === 'ar' ? 'اختر المنتج...' : 'Select product...'}</option>
+                    {(selectedOrder.items || []).map((item: any) => (
+                      <option key={item.productId} value={item.productId}>
+                        {lang === 'ar' ? item.titleAr : item.titleEn} (x{item.quantity})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={manualCode}
+                    onChange={e => setManualCode(e.target.value)}
+                    placeholder={lang === 'ar' ? 'أدخل الكود هنا...' : 'Enter code here...'}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono"
+                  />
+                  <button
+                    onClick={() => handleSendManualCode(selectedOrder.id)}
+                    disabled={sendingCode || !manualCode.trim() || !manualProductId}
+                    className="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {sendingCode ? '...' : <>{lang === 'ar' ? 'إرسال الكود للعميل' : 'Send Code to Customer'}</>}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

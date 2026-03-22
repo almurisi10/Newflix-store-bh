@@ -17,6 +17,7 @@ export const ordersTable = pgTable("orders", {
   status: text("status").notNull().default("pending"),
   paymentMethod: text("payment_method").default("benefitpay"),
   receiptImage: text("receipt_image"),
+  receiptHash: text("receipt_hash"),
   receiptStatus: text("receipt_status").default("pending"),
   aiVerificationResult: jsonb("ai_verification_result"),
   loyaltyPointsEarned: integer("loyalty_points_earned").default(0),
