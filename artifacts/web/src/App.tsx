@@ -22,8 +22,14 @@ import Checkout from "@/pages/Checkout";
 import Auth from "@/pages/Auth";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminLogin from "@/pages/AdminLogin";
+import MyOrders from "@/pages/MyOrders";
+import AccountSettings from "@/pages/AccountSettings";
+import Wishlist from "@/pages/Wishlist";
 import NotFound from "@/pages/not-found";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Package, Heart, Settings, User } from "lucide-react";
+import { Link } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -83,20 +89,53 @@ function StaticPage({ titleAr, titleEn, contentAr, contentEn }: { titleAr: strin
 
 function Account() {
   const { lang } = useLanguage();
+  const { user, signOut } = useAuth();
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-20 text-center">
+        <div className="max-w-md mx-auto">
+          <User className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-2xl font-bold mb-2">{lang === 'ar' ? 'تسجيل الدخول مطلوب' : 'Login Required'}</h2>
+          <p className="text-muted-foreground mb-6">{lang === 'ar' ? 'يرجى تسجيل الدخول لعرض حسابك' : 'Please login to view your account'}</p>
+          <Link href="/login">
+            <button className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-8 py-3 font-medium">{lang === 'ar' ? 'تسجيل الدخول' : 'Login'}</button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const menuItems = [
+    { href: '/account/orders', Icon: Package, titleAr: 'طلباتي', titleEn: 'My Orders', descAr: 'تتبع حالة طلباتك وسجل المشتريات', descEn: 'Track your orders and purchase history', color: 'bg-blue-500/10 text-blue-500' },
+    { href: '/account/wishlist', Icon: Heart, titleAr: 'المفضلة', titleEn: 'Wishlist', descAr: 'المنتجات المحفوظة للشراء لاحقاً', descEn: 'Products saved for later', color: 'bg-pink-500/10 text-pink-500' },
+    { href: '/account/settings', Icon: Settings, titleAr: 'إعدادات الحساب', titleEn: 'Account Settings', descAr: 'إدارة معلومات حسابك وتفضيلاتك', descEn: 'Manage your account info and preferences', color: 'bg-gray-500/10 text-gray-500' },
+  ];
+
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-8 md:py-12">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">{lang === 'ar' ? 'حسابي' : 'My Account'}</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[
-            { href: '/account/orders', icon: '📦', titleAr: 'طلباتي', titleEn: 'My Orders', descAr: 'تتبع حالة طلباتك', descEn: 'Track your order status' },
-            { href: '/account', icon: '⚙️', titleAr: 'إعدادات الحساب', titleEn: 'Account Settings', descAr: 'إدارة معلومات حسابك', descEn: 'Manage your account info' },
-          ].map((item) => (
-            <a key={item.href} href={item.href} className="bg-card rounded-2xl border border-border p-6 hover:border-primary/30 hover:shadow-lg transition-all">
-              <span className="text-3xl mb-4 block">{item.icon}</span>
-              <h3 className="font-bold text-lg mb-1">{lang === 'ar' ? item.titleAr : item.titleEn}</h3>
-              <p className="text-muted-foreground text-sm">{lang === 'ar' ? item.descAr : item.descEn}</p>
-            </a>
+        <div className="flex items-center gap-4 mb-8 p-6 bg-card border border-border rounded-2xl">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <User className="w-8 h-8 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold truncate">{user.displayName || user.email?.split('@')[0]}</h1>
+            <p className="text-sm text-muted-foreground truncate dir-ltr text-start">{user.email}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {menuItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <div className="bg-card rounded-2xl border border-border p-6 hover:border-primary/30 hover:shadow-lg transition-all h-full cursor-pointer group">
+                <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <item.Icon className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-lg mb-1">{lang === 'ar' ? item.titleAr : item.titleEn}</h3>
+                <p className="text-muted-foreground text-sm">{lang === 'ar' ? item.descAr : item.descEn}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -115,6 +154,9 @@ function AppRouter() {
       <Route path="/login">{() => <Auth mode="login" />}</Route>
       <Route path="/register">{() => <Auth mode="register" />}</Route>
       <Route path="/account" component={Account} />
+      <Route path="/account/orders" component={MyOrders} />
+      <Route path="/account/settings" component={AccountSettings} />
+      <Route path="/account/wishlist" component={Wishlist} />
       <Route path="/Newflix-login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/about" component={About} />
