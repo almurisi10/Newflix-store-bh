@@ -9,6 +9,9 @@ import homepageRouter from "./homepage";
 import popupsRouter from "./popups";
 import inventoryRouter from "./inventory";
 import seedRouter from "./seed";
+import adminAuthRouter from "./admin-auth";
+import siteContentRouter from "./site-content";
+import adminSettingsRouter from "./admin-settings";
 
 const router: IRouter = Router();
 
@@ -22,5 +25,8 @@ router.use(homepageRouter);
 router.use(popupsRouter);
 router.use(inventoryRouter);
 router.use(seedRouter);
+router.use(adminAuthRouter);
+router.use(siteContentRouter);
+router.use(adminSettingsRouter);
 
 export default router;

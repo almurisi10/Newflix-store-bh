@@ -45,6 +45,18 @@ artifacts-monorepo/
 └── package.json
 ```
 
+## Admin System
+
+- **Admin Login**: `/Newflix-login` — separate from customer auth, JWT-based sessions
+- **Invite Code**: Server-validated via `ADMIN_INVITE_CODE` env var (`Almurisi34490039@`)
+- **Admin Auth**: bcryptjs password hashing, JWT tokens (7-day expiry), admin middleware
+- **Signup Toggle**: Admin can disable new admin registration from Settings
+- **CMS**: `site_content` table stores all editable text (AR/EN) with content keys
+- **Inline Editing**: When admin logged in, toggle "Edit Mode" to see pencil icons on editable text; supports text, color, font-size, font-weight editing
+- **Activity Logs**: All admin actions (login, content edits, setting changes) logged to `admin_activity_logs`
+- **Homepage Ordering**: Drag-and-drop section reordering in admin dashboard
+- **Admin Dashboard Tabs**: Overview, Page Management, Homepage Sections, Content (CMS), Products, Orders, Activity Log, Settings
+
 ## Frontend Architecture (`artifacts/web/`)
 
 ```text
@@ -64,7 +76,10 @@ src/
 ├── contexts/
 │   ├── LanguageContext.tsx   # AR/EN with translations, dir, localStorage
 │   ├── CartContext.tsx       # Cart items, quantities, localStorage persistence
-│   └── AuthContext.tsx       # Firebase Auth state, isAdmin check
+│   ├── AuthContext.tsx       # Firebase Auth state (customer)
+│   ├── AdminAuthContext.tsx  # Admin JWT auth (login/register/me)
+│   ├── SiteContentContext.tsx # CMS content provider (loads all site text)
+│   └── EditModeContext.tsx   # Inline editing toggle for admins
 ├── lib/
 │   ├── firebase.ts          # Firebase app initialization
 │   └── utils.ts             # cn() utility
@@ -74,8 +89,9 @@ src/
     ├── ProductDetail.tsx     # Full product page with gallery, quantity selector
     ├── Cart.tsx              # Cart page with coupon code support
     ├── Checkout.tsx          # Checkout form with order summary
-    ├── Auth.tsx              # Login/register with Firebase
-    ├── AdminDashboard.tsx    # Admin stats dashboard
+    ├── Auth.tsx              # Login/register with Firebase (customers)
+    ├── AdminLogin.tsx        # Admin login/register at /Newflix-login
+    ├── AdminDashboard.tsx    # Full admin dashboard with sidebar + tabs
     └── not-found.tsx         # 404 page
 ```
 
@@ -102,11 +118,19 @@ All routes mounted at `/api`:
 - `PATCH /api/popups/:id` — update popup
 - `GET /api/inventory/:productId` — inventory items
 - `POST /api/inventory/:productId` — add inventory items
+- `POST /api/admin-auth/register` — register admin (requires invite code)
+- `POST /api/admin-auth/login` — admin login (returns JWT)
+- `GET /api/admin-auth/me` — verify admin token
+- `GET/POST /api/site-content` — list/create site content
+- `GET/PUT /api/site-content/:key` — get/update content by key
+- `POST /api/site-content/bulk` — bulk update content
+- `GET/PUT /api/admin-settings/:key` — get/update admin settings
+- `GET /api/admin-activity-logs` — list admin activity logs
 - `POST /api/seed` — seed demo data
 
 ## Database Schema
 
-Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`
+Tables: `categories`, `products`, `orders`, `coupons`, `homepage_sections`, `popups`, `inventory_items`, `admin_users`, `site_content`, `admin_activity_logs`, `admin_settings`
 
 ## Key Configuration
 

@@ -1,0 +1,64 @@
+Add the following advanced admin access and inline editing requirements to the existing implementation. Implement them cleanly and securely without rewriting the project from scratch.
+
+Admin authentication and access:
+- Create a dedicated admin login page with the exact route: `/Newflix-login`
+- Keep the public customer login/register flow separate from the admin login flow
+- Create an admin account creation flow that only works when the following invite/access code is entered exactly:
+  `Almurisi34490039@`
+- Validate this admin invite code securely on the server side, not only on the client side
+- Store the admin invite code in environment variables / secure config where appropriate, and do not hardcode sensitive validation logic in unsafe places
+- Add the ability in admin settings to hide or disable the admin signup button from the admin login page at any time
+- Add role-safe protection so only authorized admins can access admin routes and admin editing tools
+
+Full page control from admin dashboard:
+- Every page in the website must have a corresponding management area in the admin dashboard
+- This includes all public pages, page sections, page texts, banners, actions, media, and SEO data
+- The admin dashboard must clearly map each public page to its editing/settings area
+- Do not leave any page or important section unmanaged
+
+Homepage ordering and content control:
+- Add drag-and-drop ordering for homepage sections inside the admin dashboard
+- Save section order persistently in the database
+- Reflect the new order on the live homepage without manual code edits
+- Allow enabling/disabling each homepage section
+- Allow editing all homepage texts, buttons, labels, headings, subtitles, and section content from admin tools
+
+Global text editing / content management:
+- Make all important visible website text editable through a centralized content management system
+- Support editing Arabic and English text values separately
+- Support editing headings, paragraphs, button labels, badges, notices, footer text, navigation labels, and repeated UI text
+- Use a structured content model so text is not scattered randomly across hardcoded components
+
+Inline visual editing for admins:
+- When logged in as admin, enable an inline visual editing mode directly on the live site pages
+- Show edit pencil icons on editable elements/sections across the website only for authenticated admins
+- Clicking a pencil icon should open a clean inline editor, side panel, modal, or floating form for that exact element
+- Admin must be able to edit content directly from the same page they are viewing, without needing to go back to the dashboard for common content edits
+- Example: on the homepage, the admin must be able to edit the store name, displayed text, colors, font size, section titles, button text, and similar content directly from the homepage itself
+- Inline editing must support at minimum:
+  - text content
+  - Arabic/English values
+  - text color
+  - font size
+  - font weight where appropriate
+  - button label text
+  - section titles/subtitles
+  - simple visibility toggles where practical
+- Keep this inline editing experience elegant, secure, and non-intrusive
+- Inline editing controls must never appear for normal users or guests
+
+Admin editing UX requirements:
+- Add a clear toggle for “Edit Mode” for admins
+- In edit mode, highlight editable regions safely and neatly
+- Prevent layout breakage while editing
+- Save changes to the database and update the UI reliably
+- Add cancel/reset behavior for unsaved edits
+- Add success/error feedback after saving
+- Keep inline editing fully compatible with Arabic RTL and English LTR layouts
+
+Security and governance:
+- Restrict inline editing and advanced page controls by role/permission
+- Log content edits in admin activity logs
+- Track who changed what and when
+- Validate inline edit payloads on the server side
+- Prevent unauthorized text/style changes

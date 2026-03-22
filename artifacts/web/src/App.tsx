@@ -6,10 +6,14 @@ import { Toaster } from "sonner";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
+import { SiteContentProvider } from "@/contexts/SiteContentContext";
+import { EditModeProvider } from "@/contexts/EditModeContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { EditModeToggle } from "@/components/InlineEditor";
 import Home from "@/pages/Home";
 import Shop from "@/pages/Shop";
 import ProductDetail from "@/pages/ProductDetail";
@@ -17,6 +21,7 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import Auth from "@/pages/Auth";
 import AdminDashboard from "@/pages/AdminDashboard";
+import AdminLogin from "@/pages/AdminLogin";
 import NotFound from "@/pages/not-found";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -110,6 +115,7 @@ function AppRouter() {
       <Route path="/login">{() => <Auth mode="login" />}</Route>
       <Route path="/register">{() => <Auth mode="register" />}</Route>
       <Route path="/account" component={Account} />
+      <Route path="/Newflix-login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
@@ -122,7 +128,7 @@ function AppRouter() {
   );
 }
 
-function AppLayout() {
+function PublicLayout() {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
@@ -132,6 +138,7 @@ function AppLayout() {
       <Footer />
       <CartDrawer />
       <WhatsAppButton />
+      <EditModeToggle />
     </div>
   );
 }
@@ -142,14 +149,20 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <AuthProvider>
-            <CartProvider>
-              <TooltipProvider>
-                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                  <AppLayout />
-                </WouterRouter>
-                <Toaster position="top-center" richColors />
-              </TooltipProvider>
-            </CartProvider>
+            <AdminAuthProvider>
+              <SiteContentProvider>
+                <EditModeProvider>
+                  <CartProvider>
+                    <TooltipProvider>
+                      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                        <PublicLayout />
+                      </WouterRouter>
+                      <Toaster position="top-center" richColors />
+                    </TooltipProvider>
+                  </CartProvider>
+                </EditModeProvider>
+              </SiteContentProvider>
+            </AdminAuthProvider>
           </AuthProvider>
         </LanguageProvider>
       </QueryClientProvider>

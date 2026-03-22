@@ -1,11 +1,11 @@
 import { Router, type IRouter } from "express";
-import { db, categoriesTable, productsTable, homepageSectionsTable, couponsTable, popupsTable, inventoryItemsTable } from "@workspace/db";
+import { db, categoriesTable, productsTable, homepageSectionsTable, couponsTable, popupsTable, inventoryItemsTable, siteContentTable, adminSettingsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.post("/seed", async (_req, res): Promise<void> => {
-  await db.execute(sql`TRUNCATE categories, products, homepage_sections, coupons, popups, inventory_items, orders RESTART IDENTITY CASCADE`);
+  await db.execute(sql`TRUNCATE categories, products, homepage_sections, coupons, popups, inventory_items, orders, site_content, admin_settings RESTART IDENTITY CASCADE`);
 
   const categories = await db.insert(categoriesTable).values([
     { nameAr: "اشتراكات رقمية", nameEn: "Digital Subscriptions", descriptionAr: "اشتراكات في أفضل المنصات الرقمية", descriptionEn: "Subscriptions to top digital platforms", icon: "📺", sortOrder: 1, active: true },
@@ -124,6 +124,42 @@ router.post("/seed", async (_req, res): Promise<void> => {
 
   await db.insert(popupsTable).values([
     { titleAr: "عرض خاص!", titleEn: "Special Offer!", descriptionAr: "احصل على خصم 10% على أول طلب باستخدام كود WELCOME10", descriptionEn: "Get 10% off your first order with code WELCOME10", ctaTextAr: "تسوق الآن", ctaTextEn: "Shop Now", targetUrl: "/shop", active: true, showOnce: true },
+  ]);
+
+  await db.insert(siteContentTable).values([
+    { contentKey: "hero.badge", page: "home", section: "hero", valueAr: "أفضل متجر للمنتجات الرقمية", valueEn: "Premium Digital Store", contentType: "text" },
+    { contentKey: "hero.title.line1", page: "home", section: "hero", valueAr: "عالم من الترفيه", valueEn: "A World of Entertainment", contentType: "text" },
+    { contentKey: "hero.title.line2", page: "home", section: "hero", valueAr: "بين يديك", valueEn: "At Your Fingertips", contentType: "text" },
+    { contentKey: "hero.subtitle", page: "home", section: "hero", valueAr: "اشتراكات، بطاقات هدايا، وألعاب. تسليم فوري وآمن وبأفضل الأسعار في البحرين.", valueEn: "Subscriptions, gift cards, and games. Instant secure delivery with the best prices in Bahrain.", contentType: "text" },
+    { contentKey: "hero.cta.primary", page: "home", section: "hero", valueAr: "تسوق الآن", valueEn: "Shop Now", contentType: "text" },
+    { contentKey: "hero.cta.secondary", page: "home", section: "hero", valueAr: "التصنيفات", valueEn: "Categories", contentType: "text" },
+    { contentKey: "features.instant.title", page: "home", section: "features", valueAr: "تسليم فوري", valueEn: "Instant Delivery", contentType: "text" },
+    { contentKey: "features.instant.desc", page: "home", section: "features", valueAr: "استلم طلبك رقمياً فور الدفع", valueEn: "Get your order digitally right after payment", contentType: "text" },
+    { contentKey: "features.secure.title", page: "home", section: "features", valueAr: "دفع آمن", valueEn: "Secure Payment", contentType: "text" },
+    { contentKey: "features.secure.desc", page: "home", section: "features", valueAr: "بوابات دفع مشفرة وموثوقة", valueEn: "Encrypted and trusted payment gateways", contentType: "text" },
+    { contentKey: "features.support.title", page: "home", section: "features", valueAr: "دعم 24/7", valueEn: "24/7 Support", contentType: "text" },
+    { contentKey: "features.support.desc", page: "home", section: "features", valueAr: "فريق جاهز لخدمتك دائماً", valueEn: "Our team is always ready to help", contentType: "text" },
+    { contentKey: "cta.title", page: "home", section: "cta", valueAr: "احصل على خصم 10% على أول طلب", valueEn: "Get 10% Off Your First Order", contentType: "text" },
+    { contentKey: "cta.subtitle", page: "home", section: "cta", valueAr: "استخدم الكود WELCOME10 عند الدفع واستمتع بأفضل المنتجات الرقمية", valueEn: "Use code WELCOME10 at checkout and enjoy the best digital products", contentType: "text" },
+    { contentKey: "cta.button", page: "home", section: "cta", valueAr: "نسخ الكود", valueEn: "Copy Code", contentType: "text" },
+    { contentKey: "navbar.storeName", page: "global", section: "navbar", valueAr: "نيوفلكس ستور", valueEn: "NEWFLIX STORE", contentType: "text" },
+    { contentKey: "navbar.home", page: "global", section: "navbar", valueAr: "الرئيسية", valueEn: "Home", contentType: "text" },
+    { contentKey: "navbar.shop", page: "global", section: "navbar", valueAr: "المتجر", valueEn: "Shop", contentType: "text" },
+    { contentKey: "navbar.about", page: "global", section: "navbar", valueAr: "من نحن", valueEn: "About", contentType: "text" },
+    { contentKey: "navbar.contact", page: "global", section: "navbar", valueAr: "اتصل بنا", valueEn: "Contact", contentType: "text" },
+    { contentKey: "footer.description", page: "global", section: "footer", valueAr: "متجرك الأول للمنتجات الرقمية في البحرين", valueEn: "Your #1 digital products store in Bahrain", contentType: "text" },
+    { contentKey: "footer.copyright", page: "global", section: "footer", valueAr: "جميع الحقوق محفوظة", valueEn: "All rights reserved", contentType: "text" },
+    { contentKey: "about.title", page: "about", section: "main", valueAr: "من نحن", valueEn: "About Us", contentType: "text" },
+    { contentKey: "about.content", page: "about", section: "main", valueAr: "نيوفلكس ستور هو متجر إلكتروني متخصص في بيع المنتجات الرقمية في مملكة البحرين. نقدم مجموعة واسعة من الاشتراكات الرقمية، بطاقات الهدايا، تراخيص البرامج، والخدمات الرقمية بأفضل الأسعار وأعلى جودة.", valueEn: "NEWFLIX STORE is an online store specializing in selling digital products in the Kingdom of Bahrain. We offer a wide range of digital subscriptions, gift cards, software licenses, and digital services at the best prices and highest quality.", contentType: "text" },
+    { contentKey: "contact.title", page: "contact", section: "main", valueAr: "اتصل بنا", valueEn: "Contact Us", contentType: "text" },
+    { contentKey: "contact.location", page: "contact", section: "main", valueAr: "مملكة البحرين", valueEn: "Kingdom of Bahrain", contentType: "text" },
+    { contentKey: "contact.whatsapp", page: "contact", section: "main", valueAr: "+973 37127483", valueEn: "+973 37127483", contentType: "text" },
+    { contentKey: "contact.instagram", page: "contact", section: "main", valueAr: "@NEWFLIX.ADS", valueEn: "@NEWFLIX.ADS", contentType: "text" },
+  ]);
+
+  await db.insert(adminSettingsTable).values([
+    { settingKey: "admin_signup_disabled", settingValue: { value: false } },
+    { settingKey: "maintenance_mode", settingValue: { value: false } },
   ]);
 
   res.json({ message: "تم إضافة البيانات التجريبية بنجاح" });
