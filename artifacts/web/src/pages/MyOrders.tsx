@@ -19,18 +19,21 @@ export default function MyOrders() {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [uploadingOrder, setUploadingOrder] = useState<number | null>(null);
   const [receiptIssues, setReceiptIssues] = useState<Record<number, any>>({});
+  const [includeCodesInInvoice, setIncludeCodesInInvoice] = useState<Record<number, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadInvoice = async (order: any) => {
     const storeName = getText('store.name', 'en') || 'NEWFLIX STORE';
     const storeNameAr = getText('store.name', 'ar') || 'نيوفلكس ستور';
     const logoUrl = getText('store.logo', lang) || undefined;
+    const includeCodes = includeCodesInInvoice[order.id] ?? false;
     try {
       await generateProfessionalInvoice(
         order, lang, storeName, storeNameAr,
         user ? { displayName: user.displayName, email: user.email } : undefined,
         logoUrl,
-        user?.uid
+        user?.uid,
+        includeCodes
       );
       toast.success(lang === 'ar' ? 'تم تحميل الفاتورة' : 'Invoice downloaded');
     } catch (err) {
@@ -378,13 +381,32 @@ export default function MyOrders() {
               )}
 
               {(order.status === 'paid' || order.status === 'delivered') && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(order); }}
-                  className="flex items-center justify-center gap-2 w-full bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 rounded-xl px-4 py-3 text-sm font-medium transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  {lang === 'ar' ? 'تحميل الفاتورة PDF' : 'Download Invoice PDF'}
-                </button>
+                <div className="space-y-2">
+                  <label
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-2 cursor-pointer px-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={includeCodesInInvoice[order.id] ?? false}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIncludeCodesInInvoice(prev => ({ ...prev, [order.id]: e.target.checked }));
+                      }}
+                      className="w-4 h-4 rounded border-primary/30 text-primary focus:ring-primary/20 accent-primary"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {lang === 'ar' ? 'إضافة أكواد المنتجات في الفاتورة' : 'Include product codes in invoice'}
+                    </span>
+                  </label>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(order); }}
+                    className="flex items-center justify-center gap-2 w-full bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 rounded-xl px-4 py-3 text-sm font-medium transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    {lang === 'ar' ? 'تحميل الفاتورة PDF' : 'Download Invoice PDF'}
+                  </button>
+                </div>
               )}
 
               <a

@@ -11,7 +11,28 @@ interface InvoiceData {
   logoDataUrl?: string;
   user?: { displayName?: string | null; email?: string | null };
   deliveryCodes?: any[];
+  fontDataUrl?: string;
+  fontBoldDataUrl?: string;
 }
+
+async function loadFontAsDataUrl(path: string): Promise<string | null> {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+let cachedFontRegular: string | null = null;
+let cachedFontBold: string | null = null;
 
 function esc(str: string | null | undefined): string {
   if (!str) return '';
@@ -51,10 +72,18 @@ async function imageToDataUrl(url: string): Promise<string | null> {
 }
 
 function buildInvoiceHTML(data: InvoiceData): string {
-  const { order, lang, storeName, storeNameAr, logoDataUrl, user, deliveryCodes } = data;
+  const { order, lang, storeName, storeNameAr, logoDataUrl, user, deliveryCodes, fontDataUrl, fontBoldDataUrl } = data;
   const isAr = lang === 'ar';
   const dir = isAr ? 'rtl' : 'ltr';
-  const fontFamily = "'Segoe UI', Tahoma, Arial, sans-serif";
+
+  const fontFaceCSS = (fontDataUrl || fontBoldDataUrl) ? `
+    <style>
+      ${fontDataUrl ? `@font-face { font-family: 'NotoKufiArabic'; src: url('${fontDataUrl}') format('truetype'); font-weight: 400; font-style: normal; }` : ''}
+      ${fontBoldDataUrl ? `@font-face { font-family: 'NotoKufiArabic'; src: url('${fontBoldDataUrl}') format('truetype'); font-weight: 700; font-style: normal; }` : ''}
+    </style>
+  ` : '';
+
+  const fontFamily = fontDataUrl ? "'NotoKufiArabic', 'Segoe UI', Tahoma, Arial, sans-serif" : "'Segoe UI', Tahoma, Arial, sans-serif";
 
   const orderDate = new Date(order.createdAt);
   const dateStr = orderDate.toLocaleDateString(isAr ? 'ar-BH' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -97,6 +126,7 @@ function buildInvoiceHTML(data: InvoiceData): string {
     : `<div style="width:48px;height:48px;border-radius:10px;background:#1FB5AC;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:900;">N</div>`;
 
   return `
+    ${fontFaceCSS}
     <div id="invoice-container" dir="${dir}" style="width:595px;padding:0;margin:0;font-family:${fontFamily};background:#ffffff;color:#1E1E1E;line-height:1.5;">
       
       <div style="background:linear-gradient(135deg,#173E52 0%,#1a4a60 50%,#173E52 100%);padding:28px 32px 22px;position:relative;overflow:hidden;">
@@ -247,9 +277,10 @@ export async function generateProfessionalInvoice(
   storeNameAr: string,
   user?: { displayName?: string | null; email?: string | null },
   logoUrl?: string,
-  firebaseUid?: string
+  firebaseUid?: string,
+  includeCodes: boolean = true
 ) {
-  const deliveryCodes = (order.status === 'paid' || order.status === 'delivered')
+  const deliveryCodes = includeCodes && (order.status === 'paid' || order.status === 'delivered')
     ? await fetchDeliveryCodes(order.id, firebaseUid)
     : [];
 
@@ -259,8 +290,18 @@ export async function generateProfessionalInvoice(
     if (dataUrl) logoDataUrl = dataUrl;
   }
 
+  const basePath = import.meta.env.BASE_URL || '/';
+  if (!cachedFontRegular) {
+    cachedFontRegular = await loadFontAsDataUrl(`${basePath}fonts/NotoKufiArabic-Regular.ttf`);
+  }
+  if (!cachedFontBold) {
+    cachedFontBold = await loadFontAsDataUrl(`${basePath}fonts/NotoKufiArabic-Bold.ttf`);
+  }
+
   const html = buildInvoiceHTML({
-    order, lang, storeName, storeNameAr, logoDataUrl, user, deliveryCodes
+    order, lang, storeName, storeNameAr, logoDataUrl, user, deliveryCodes,
+    fontDataUrl: cachedFontRegular || undefined,
+    fontBoldDataUrl: cachedFontBold || undefined,
   });
 
   const container = document.createElement('div');
