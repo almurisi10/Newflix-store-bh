@@ -7,7 +7,7 @@ import { Package, Clock, CheckCircle, XCircle, ArrowLeft, ArrowRight, ShoppingBa
 import { Button } from '@/components/ui/button';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
-import { jsPDF } from 'jspdf';
+import { generateProfessionalInvoice } from '@/utils/pdfInvoice';
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
@@ -21,98 +21,16 @@ export default function MyOrders() {
   const [receiptIssues, setReceiptIssues] = useState<Record<number, any>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const generateInvoicePDF = (order: any) => {
+  const handleDownloadInvoice = async (order: any) => {
     const storeName = getText('store.name', 'en') || 'NEWFLIX STORE';
     const storeNameAr = getText('store.name', 'ar') || 'نيوفلكس ستور';
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFontSize(24);
-    doc.setTextColor(99, 102, 241);
-    doc.text(storeName, pageWidth / 2, 25, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.setTextColor(120, 120, 120);
-    doc.text('Digital Products Store - Bahrain', pageWidth / 2, 32, { align: 'center' });
-
-    doc.setDrawColor(99, 102, 241);
-    doc.setLineWidth(0.5);
-    doc.line(20, 38, pageWidth - 20, 38);
-
-    doc.setFontSize(16);
-    doc.setTextColor(30, 30, 30);
-    doc.text('INVOICE', pageWidth / 2, 50, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    const orderDate = new Date(order.createdAt);
-    const dateStr = orderDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const timeStr = orderDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-    let y = 62;
-    doc.text(`Order: ${order.orderNumber || '#' + order.id}`, 20, y);
-    doc.text(`Date: ${dateStr}`, pageWidth - 20, y, { align: 'right' });
-    y += 7;
-    doc.text(`Time: ${timeStr}`, 20, y);
-    doc.text(`Status: Completed`, pageWidth - 20, y, { align: 'right' });
-
-    y += 14;
-    doc.setFontSize(11);
-    doc.setTextColor(30, 30, 30);
-    doc.text('Customer Information', 20, y);
-    y += 7;
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Name: ${order.customerName || user?.displayName || 'N/A'}`, 20, y);
-    y += 6;
-    doc.text(`Email: ${order.customerEmail || user?.email || 'N/A'}`, 20, y);
-    if (order.customerPhone) { y += 6; doc.text(`Phone: ${order.customerPhone}`, 20, y); }
-
-    y += 14;
-    doc.setFillColor(99, 102, 241);
-    doc.rect(20, y - 5, pageWidth - 40, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.text('Product', 25, y);
-    doc.text('Qty', pageWidth - 70, y, { align: 'center' });
-    doc.text('Price', pageWidth - 40, y, { align: 'center' });
-    doc.text('Total', pageWidth - 25, y, { align: 'right' });
-
-    y += 8;
-    doc.setTextColor(50, 50, 50);
-    (order.items || []).forEach((item: any) => {
-      const title = item.titleEn || item.titleAr || 'Product';
-      doc.text(title.substring(0, 40), 25, y);
-      doc.text(String(item.quantity), pageWidth - 70, y, { align: 'center' });
-      doc.text(`${item.price} BHD`, pageWidth - 40, y, { align: 'center' });
-      doc.text(`${(item.quantity * item.price).toFixed(3)} BHD`, pageWidth - 25, y, { align: 'right' });
-      y += 7;
-    });
-
-    doc.setDrawColor(200, 200, 200);
-    doc.line(20, y, pageWidth - 20, y);
-    y += 8;
-
-    if (order.discount && Number(order.discount) > 0) {
-      doc.text('Discount:', pageWidth - 70, y, { align: 'right' });
-      doc.setTextColor(220, 38, 38);
-      doc.text(`-${order.discount} BHD`, pageWidth - 25, y, { align: 'right' });
-      y += 7;
+    try {
+      await generateProfessionalInvoice(order, lang, storeName, storeNameAr, user ? { displayName: user.displayName, email: user.email } : undefined);
+      toast.success(lang === 'ar' ? 'تم تحميل الفاتورة' : 'Invoice downloaded');
+    } catch (err) {
+      console.error('Invoice generation error:', err);
+      toast.error(lang === 'ar' ? 'خطأ في إنشاء الفاتورة' : 'Error generating invoice');
     }
-
-    doc.setFontSize(12);
-    doc.setTextColor(99, 102, 241);
-    doc.text('Total:', pageWidth - 70, y, { align: 'right' });
-    doc.text(`${order.total} BHD`, pageWidth - 25, y, { align: 'right' });
-
-    y += 20;
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Thank you for your purchase!', pageWidth / 2, y, { align: 'center' });
-    doc.text(`${storeNameAr} | ${storeName}`, pageWidth / 2, y + 6, { align: 'center' });
-
-    doc.save(`invoice-${order.orderNumber || order.id}.pdf`);
-    toast.success(lang === 'ar' ? 'تم تحميل الفاتورة' : 'Invoice downloaded');
   };
 
   const { data: orders, isLoading, refetch } = useQuery({
@@ -455,7 +373,7 @@ export default function MyOrders() {
 
               {(order.status === 'paid' || order.status === 'delivered') && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); generateInvoicePDF(order); }}
+                  onClick={(e) => { e.stopPropagation(); handleDownloadInvoice(order); }}
                   className="flex items-center justify-center gap-2 w-full bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 rounded-xl px-4 py-3 text-sm font-medium transition-colors"
                 >
                   <Download className="w-4 h-4" />

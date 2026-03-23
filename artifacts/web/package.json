@@ -76,6 +76,8 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "arabic-reshaper": "^1.1.0",
+    "bidi-js": "^1.0.3",
     "embla-carousel-autoplay": "^8.6.0",
     "jspdf": "^4.2.1"
   }
