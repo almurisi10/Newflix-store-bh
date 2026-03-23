@@ -32,6 +32,7 @@ export const productsTable = pgTable("products", {
   productType: text("product_type").notNull().default("code"),
   deliveryMode: text("delivery_mode").notNull().default("multi_code"),
   singleCodeValue: text("single_code_value"),
+  customerFields: jsonb("customer_fields").notNull().default([]),
   seoTitle: text("seo_title"),
   seoDescription: text("seo_description"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

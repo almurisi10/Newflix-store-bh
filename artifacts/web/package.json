@@ -76,6 +76,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "embla-carousel-autoplay": "^8.6.0"
+    "embla-carousel-autoplay": "^8.6.0",
+    "jspdf": "^4.2.1"
   }
 }

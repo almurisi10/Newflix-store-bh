@@ -69,6 +69,16 @@ export const ListProductsResponse = zod.object({
       ]),
       seoTitle: zod.string().nullish(),
       seoDescription: zod.string().nullish(),
+      customerFields: zod
+        .array(
+          zod.object({
+            type: zod.string().optional(),
+            labelAr: zod.string().optional(),
+            labelEn: zod.string().optional(),
+            required: zod.boolean().optional(),
+          }),
+        )
+        .optional(),
       createdAt: zod.date(),
       updatedAt: zod.date(),
     }),
@@ -107,6 +117,16 @@ export const CreateProductBody = zod.object({
   productType: zod.enum(["file", "link", "code", "text", "account", "manual"]),
   seoTitle: zod.string().nullish(),
   seoDescription: zod.string().nullish(),
+  customerFields: zod
+    .array(
+      zod.object({
+        type: zod.string().optional(),
+        labelAr: zod.string().optional(),
+        labelEn: zod.string().optional(),
+        required: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -143,6 +163,16 @@ export const GetProductResponse = zod.object({
   productType: zod.enum(["file", "link", "code", "text", "account", "manual"]),
   seoTitle: zod.string().nullish(),
   seoDescription: zod.string().nullish(),
+  customerFields: zod
+    .array(
+      zod.object({
+        type: zod.string().optional(),
+        labelAr: zod.string().optional(),
+        labelEn: zod.string().optional(),
+        required: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -182,6 +212,16 @@ export const UpdateProductBody = zod.object({
     .optional(),
   seoTitle: zod.string().nullish(),
   seoDescription: zod.string().nullish(),
+  customerFields: zod
+    .array(
+      zod.object({
+        type: zod.string().optional(),
+        labelAr: zod.string().optional(),
+        labelEn: zod.string().optional(),
+        required: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const UpdateProductResponse = zod.object({
@@ -211,6 +251,16 @@ export const UpdateProductResponse = zod.object({
   productType: zod.enum(["file", "link", "code", "text", "account", "manual"]),
   seoTitle: zod.string().nullish(),
   seoDescription: zod.string().nullish(),
+  customerFields: zod
+    .array(
+      zod.object({
+        type: zod.string().optional(),
+        labelAr: zod.string().optional(),
+        labelEn: zod.string().optional(),
+        required: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
   createdAt: zod.date(),
   updatedAt: zod.date(),
 });
@@ -629,6 +679,16 @@ export const GetAdminStatsResponse = zod.object({
       ]),
       seoTitle: zod.string().nullish(),
       seoDescription: zod.string().nullish(),
+      customerFields: zod
+        .array(
+          zod.object({
+            type: zod.string().optional(),
+            labelAr: zod.string().optional(),
+            labelEn: zod.string().optional(),
+            required: zod.boolean().optional(),
+          }),
+        )
+        .optional(),
       createdAt: zod.date(),
       updatedAt: zod.date(),
     }),

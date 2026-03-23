@@ -172,8 +172,8 @@ export default function Checkout() {
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email) {
-      toast.error(lang === 'ar' ? 'يرجى تعبئة الحقول المطلوبة' : 'Please fill required fields');
+    if (!formData.name || !formData.email || !formData.phone) {
+      toast.error(lang === 'ar' ? 'يرجى تعبئة جميع الحقول المطلوبة (الاسم، البريد، رقم الواتساب)' : 'Please fill all required fields (name, email, WhatsApp)');
       return;
     }
 
@@ -192,6 +192,7 @@ export default function Checkout() {
           items: items.map(item => ({
             productId: item.product.id,
             quantity: item.quantity,
+            customerFieldValues: item.customerFieldValues || undefined,
           })),
           couponCode: couponApplied?.code || null,
         }),
@@ -475,8 +476,9 @@ ${formData.notes ? `\n📝 *Notes:* ${formData.notes}` : ''}
                   <Input id="email" type="email" required className="h-12 mt-1.5" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                 </div>
                 <div>
-                  <Label htmlFor="phone">{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</Label>
-                  <Input id="phone" type="tel" className="h-12 mt-1.5 dir-ltr text-start" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                  <Label htmlFor="phone">{lang === 'ar' ? 'رقم الواتساب *' : 'WhatsApp Number *'}</Label>
+                  <Input id="phone" type="tel" required className="h-12 mt-1.5 dir-ltr text-start" placeholder="e.g. 97337127483" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                  <p className="text-xs text-muted-foreground mt-1">{lang === 'ar' ? 'مطلوب للتواصل معك بخصوص الطلب' : 'Required for order communication'}</p>
                 </div>
                 <div>
                   <Label htmlFor="notes">{lang === 'ar' ? 'ملاحظات إضافية' : 'Order Notes'}</Label>

@@ -29,6 +29,13 @@ export const ProductProductType = {
   manual: "manual",
 } as const;
 
+export type ProductCustomerFieldsItem = {
+  type?: string;
+  labelAr?: string;
+  labelEn?: string;
+  required?: boolean;
+};
+
 export interface Product {
   id: number;
   titleAr: string;
@@ -62,6 +69,7 @@ export interface Product {
   seoTitle?: string | null;
   /** @nullable */
   seoDescription?: string | null;
+  customerFields?: ProductCustomerFieldsItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -85,6 +93,13 @@ export const CreateProductBodyProductType = {
   account: "account",
   manual: "manual",
 } as const;
+
+export type CreateProductBodyCustomerFieldsItem = {
+  type?: string;
+  labelAr?: string;
+  labelEn?: string;
+  required?: boolean;
+};
 
 export interface CreateProductBody {
   titleAr: string;
@@ -118,6 +133,7 @@ export interface CreateProductBody {
   seoTitle?: string | null;
   /** @nullable */
   seoDescription?: string | null;
+  customerFields?: CreateProductBodyCustomerFieldsItem[];
 }
 
 export type UpdateProductBodyDeliveryType =
@@ -139,6 +155,13 @@ export const UpdateProductBodyProductType = {
   account: "account",
   manual: "manual",
 } as const;
+
+export type UpdateProductBodyCustomerFieldsItem = {
+  type?: string;
+  labelAr?: string;
+  labelEn?: string;
+  required?: boolean;
+};
 
 export interface UpdateProductBody {
   titleAr?: string;
@@ -172,6 +195,7 @@ export interface UpdateProductBody {
   seoTitle?: string | null;
   /** @nullable */
   seoDescription?: string | null;
+  customerFields?: UpdateProductBodyCustomerFieldsItem[];
 }
 
 export interface ProductListResponse {

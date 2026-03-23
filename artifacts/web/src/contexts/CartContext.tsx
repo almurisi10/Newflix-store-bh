@@ -6,11 +6,12 @@ import { useLanguage } from './LanguageContext';
 interface CartItem {
   product: Product;
   quantity: number;
+  customerFieldValues?: Record<string, string>;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, customerFieldValues?: Record<string, string>) => void;
   removeFromCart: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
   clearCart: () => void;
@@ -31,20 +32,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('newflix_cart', JSON.stringify(items));
+    const safeItems = items.map(({ customerFieldValues, ...rest }) => rest);
+    localStorage.setItem('newflix_cart', JSON.stringify(safeItems));
   }, [items]);
 
-  const addToCart = (product: Product, quantity: number = 1) => {
+  const addToCart = (product: Product, quantity: number = 1, customerFieldValues?: Record<string, string>) => {
     setItems(prev => {
       const existing = prev.find(item => item.product.id === product.id);
       if (existing) {
         return prev.map(item => 
           item.product.id === product.id 
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: item.quantity + quantity, customerFieldValues: customerFieldValues || item.customerFieldValues }
             : item
         );
       }
-      return [...prev, { product, quantity }];
+      return [...prev, { product, quantity, customerFieldValues }];
     });
     
     setIsCartOpen(true);

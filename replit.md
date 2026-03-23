@@ -65,7 +65,7 @@ artifacts-monorepo/
 ## Admin Dashboard Tabs
 
 - **Overview**: Revenue, orders count, products count, low stock alerts, recent orders
-- **Products**: Full CRUD with AI description generation, delivery mode (multi_code/single_code/whatsapp_manual), packages/tiers, inventory code management
+- **Products**: Full CRUD with AI description generation, delivery mode (multi_code/single_code/whatsapp_manual), packages/tiers, inventory code management, customer fields (email/phone/password/image/text per product)
 - **Orders**: Table with receipt viewer (fixed URL), AI verification results, confirm/reject payment actions, delivery code management (hide/show codes)
 - **Coupons**: Full CRUD (create/toggle/delete) with percentage/fixed discount types
 - **Users**: Customer list derived from orders with total spent and order count
@@ -110,7 +110,7 @@ artifacts-monorepo/
 /checkout          → BenefitPay payment + receipt upload
 /login             → Customer auth (Google sign-in + email/password)
 /account           → Account hub
-/account/orders    → My Orders with delivery codes
+/account/orders    → My Orders with delivery codes + PDF invoice download
 /account/wishlist  → Wishlist
 /account/settings  → Account settings
 /about             → About page

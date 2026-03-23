@@ -5,6 +5,7 @@
  * NEWFLIX STORE API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateProductBodyCustomerFieldsItem } from "./createProductBodyCustomerFieldsItem";
 import type { CreateProductBodyDeliveryType } from "./createProductBodyDeliveryType";
 import type { CreateProductBodyProductType } from "./createProductBodyProductType";
 
@@ -40,4 +41,5 @@ export interface CreateProductBody {
   seoTitle?: string | null;
   /** @nullable */
   seoDescription?: string | null;
+  customerFields?: CreateProductBodyCustomerFieldsItem[];
 }

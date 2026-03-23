@@ -74,3 +74,59 @@ export function ProductCard({ product }: { product: Product }) {
     </motion.div>
   );
 }
+
+export function CompactProductCard({ product }: { product: Product }) {
+  const { t, lang } = useLanguage();
+  const { addToCart } = useCart();
+
+  const title = lang === 'ar' ? product.titleAr : product.titleEn;
+  const isDiscounted = product.comparePrice && product.comparePrice > product.price;
+
+  return (
+    <Link href={`/product/${product.id}`}>
+      <motion.div
+        whileHover={{ y: -4 }}
+        className="group bg-card rounded-xl border border-border/50 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col h-full"
+      >
+        <div className="relative aspect-square overflow-hidden bg-muted/20">
+          <img
+            src={product.mainImage}
+            alt={title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+            {product.deliveryType === 'instant' && (
+              <div className="bg-success/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-0.5 shadow">
+                <Zap className="w-2.5 h-2.5 fill-current" />
+                {lang === 'ar' ? 'فوري' : 'Instant'}
+              </div>
+            )}
+            {isDiscounted && (
+              <div className="bg-destructive/90 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded-full shadow">
+                {lang === 'ar' ? 'خصم' : 'Sale'}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="p-3 flex flex-col flex-1">
+          <h3 className="font-bold text-sm leading-tight mb-1.5 line-clamp-2">{title}</h3>
+          <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base font-black text-primary">{product.price}</span>
+              <span className="text-xs text-muted-foreground">{t('bhd')}</span>
+              {isDiscounted && (
+                <span className="text-xs text-muted-foreground line-through">{product.comparePrice}</span>
+              )}
+            </div>
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product); }}
+              className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}

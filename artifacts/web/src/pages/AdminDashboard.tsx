@@ -202,6 +202,7 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
     sku: '', categoryIds: [] as number[], productType: 'code', deliveryType: 'instant',
     deliveryMode: 'multi_code', singleCodeValue: '', active: true, featured: false, bestseller: false,
     packages: [] as any[],
+    customerFields: [] as any[],
   });
   const [inventoryCodes, setInventoryCodes] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -217,6 +218,7 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
       sku: '', categoryIds: [], productType: 'code', deliveryType: 'instant',
       deliveryMode: 'multi_code', singleCodeValue: '', active: true, featured: false, bestseller: false,
       packages: [],
+      customerFields: [],
     });
     setInventoryCodes('');
     setEditProduct(null);
@@ -236,6 +238,7 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
       deliveryMode: p.deliveryMode || 'multi_code', singleCodeValue: p.singleCodeValue || '',
       active: p.active, featured: p.featured, bestseller: p.bestseller,
       packages: p.packages || [],
+      customerFields: p.customerFields || [],
     });
     setEditProduct(p);
     setShowForm(true);
@@ -510,6 +513,40 @@ function ProductsTab({ token, lang }: { token: string | null; lang: string }) {
                 <button onClick={() => removePackage(idx)} className="text-destructive hover:bg-destructive/10 rounded-lg p-1.5"><Trash2 className="w-4 h-4" /></button>
               </div>
             ))}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium">{lang === 'ar' ? 'حقول بيانات العميل (عند الشراء)' : 'Customer Fields (at purchase)'}</label>
+              <div className="flex gap-1">
+                {[
+                  { type: 'email', label: lang === 'ar' ? 'إيميل' : 'Email', labelAr: 'البريد الإلكتروني', labelEn: 'Email Address' },
+                  { type: 'phone', label: lang === 'ar' ? 'رقم' : 'Phone', labelAr: 'رقم الهاتف', labelEn: 'Phone Number' },
+                  { type: 'password', label: lang === 'ar' ? 'باسورد' : 'Password', labelAr: 'كلمة المرور', labelEn: 'Password' },
+                  { type: 'image', label: lang === 'ar' ? 'صورة' : 'Image', labelAr: 'رفع صورة', labelEn: 'Upload Image' },
+                  { type: 'text', label: lang === 'ar' ? 'نص' : 'Text', labelAr: 'معلومات إضافية', labelEn: 'Additional Info' },
+                ].filter(opt => !form.customerFields.find((f: any) => f.type === opt.type)).map(opt => (
+                  <button key={opt.type} onClick={() => setForm(f => ({...f, customerFields: [...f.customerFields, { type: opt.type, labelAr: opt.labelAr, labelEn: opt.labelEn, required: false }]}))} className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-lg hover:bg-primary/20">
+                    + {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.customerFields.map((field: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-2 mb-2 bg-muted/30 rounded-lg p-2">
+                <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">{field.type}</span>
+                <input value={field.labelAr} onChange={e => setForm(f => ({...f, customerFields: f.customerFields.map((cf: any, i: number) => i === idx ? {...cf, labelAr: e.target.value} : cf)}))} placeholder="عنوان عربي" className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-sm" dir="rtl" />
+                <input value={field.labelEn} onChange={e => setForm(f => ({...f, customerFields: f.customerFields.map((cf: any, i: number) => i === idx ? {...cf, labelEn: e.target.value} : cf)}))} placeholder="English label" className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-sm" />
+                <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+                  <input type="checkbox" checked={field.required} onChange={e => setForm(f => ({...f, customerFields: f.customerFields.map((cf: any, i: number) => i === idx ? {...cf, required: e.target.checked} : cf)}))} className="w-3 h-3 rounded accent-primary" />
+                  {lang === 'ar' ? 'مطلوب' : 'Req'}
+                </label>
+                <button onClick={() => setForm(f => ({...f, customerFields: f.customerFields.filter((_: any, i: number) => i !== idx)}))} className="text-destructive hover:bg-destructive/10 rounded p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            ))}
+            {form.customerFields.length === 0 && (
+              <p className="text-xs text-muted-foreground">{lang === 'ar' ? 'لا توجد حقول إضافية - اضغط الأزرار أعلاه لإضافة حقول يدخلها العميل عند الشراء' : 'No extra fields - click buttons above to add fields customers fill when purchasing'}</p>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-4">

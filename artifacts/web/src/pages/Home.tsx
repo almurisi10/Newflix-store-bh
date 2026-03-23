@@ -1,6 +1,6 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useListProducts, useListCategories, useListHomepageSections } from '@workspace/api-client-react';
-import { ProductCard } from '@/components/ProductCard';
+import { ProductCard, CompactProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { ArrowRight, ArrowLeft, Zap, Shield, Clock, Gift, ChevronLeft, ChevronRight, Copy, Check } from 'lucide-react';
@@ -249,28 +249,28 @@ export default function Home() {
       case 'featured_products':
         return (
           <section key={section.id} className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold flex items-center gap-3">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
                 <span className="w-2 h-8 bg-secondary rounded-full inline-block"></span>
                 {lang === 'ar' ? (section.titleAr || t('featured')) : (section.titleEn || t('featured'))}
               </h2>
-              <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline">
+              <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline text-sm">
                 {lang === 'ar' ? 'عرض الكل' : 'View All'} <Arrow className="w-4 h-4" />
               </Link>
             </div>
             {productsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="bg-card rounded-2xl border border-border h-[400px] animate-pulse">
-                    <div className="h-[250px] bg-muted/50 rounded-t-2xl" />
-                    <div className="p-4 space-y-3"><div className="h-6 bg-muted/50 rounded w-3/4" /><div className="h-4 bg-muted/50 rounded w-full" /><div className="h-8 bg-muted/50 rounded w-1/3 mt-4" /></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="bg-card rounded-xl border border-border animate-pulse">
+                    <div className="aspect-square bg-muted/50 rounded-t-xl" />
+                    <div className="p-3 space-y-2"><div className="h-4 bg-muted/50 rounded w-3/4" /><div className="h-4 bg-muted/50 rounded w-1/2" /></div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${section.config?.columns || 4} gap-6`}>
-                {productsData?.products.slice(0, section.config?.limit || 8).map((product) => (
-                  <ProductCard key={product.id} product={product} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {productsData?.products.slice(0, section.config?.limit || 10).map((product) => (
+                  <CompactProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}
@@ -280,18 +280,18 @@ export default function Home() {
       case 'new_products':
         return (
           <section key={section.id} className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold flex items-center gap-3">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
                 <span className="w-2 h-8 bg-primary rounded-full inline-block"></span>
                 {lang === 'ar' ? (section.titleAr || 'منتجات جديدة') : (section.titleEn || 'New Products')}
               </h2>
-              <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline">
+              <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline text-sm">
                 {lang === 'ar' ? 'عرض الكل' : 'View All'} <Arrow className="w-4 h-4" />
               </Link>
             </div>
-            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${section.config?.columns || 4} gap-6`}>
-              {allProductsData?.products.slice(0, section.config?.limit || 8).map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+              {allProductsData?.products.slice(0, section.config?.limit || 10).map((product) => (
+                <CompactProductCard key={product.id} product={product} />
               ))}
             </div>
           </section>
@@ -433,19 +433,19 @@ export default function Home() {
       )}
 
       <section className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold flex items-center gap-3"><span className="w-2 h-8 bg-secondary rounded-full inline-block" />{t('featured')}</h2>
-          <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline">{lang === 'ar' ? 'عرض الكل' : 'View All'} <Arrow className="w-4 h-4" /></Link>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3"><span className="w-2 h-8 bg-secondary rounded-full inline-block" />{t('featured')}</h2>
+          <Link href="/shop" className="text-primary font-medium flex items-center gap-1 hover:underline text-sm">{lang === 'ar' ? 'عرض الكل' : 'View All'} <Arrow className="w-4 h-4" /></Link>
         </div>
         {productsLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-card rounded-2xl border border-border h-[400px] animate-pulse"><div className="h-[250px] bg-muted/50 rounded-t-2xl" /><div className="p-4 space-y-3"><div className="h-6 bg-muted/50 rounded w-3/4" /><div className="h-4 bg-muted/50 rounded w-full" /><div className="h-8 bg-muted/50 rounded w-1/3 mt-4" /></div></div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="bg-card rounded-xl border border-border animate-pulse"><div className="aspect-square bg-muted/50 rounded-t-xl" /><div className="p-3 space-y-2"><div className="h-4 bg-muted/50 rounded w-3/4" /><div className="h-4 bg-muted/50 rounded w-1/2" /></div></div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {productsData?.products.map((product) => (<ProductCard key={product.id} product={product} />))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {productsData?.products.map((product) => (<CompactProductCard key={product.id} product={product} />))}
           </div>
         )}
       </section>

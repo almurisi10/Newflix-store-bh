@@ -17,6 +17,7 @@ export default function ProductDetail() {
   const [activeImage, setActiveImage] = useState<string>('');
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [customerFieldValues, setCustomerFieldValues] = useState<Record<string, string>>({});
 
   if (isLoading) {
     return (
@@ -171,6 +172,46 @@ export default function ProductDetail() {
               </div>
             )}
 
+            {product.customerFields && (product.customerFields as any[]).length > 0 && (
+              <div className="mb-6 space-y-3">
+                <h3 className="text-sm font-bold flex items-center gap-2">
+                  {lang === 'ar' ? 'بيانات مطلوبة للطلب' : 'Required Information'}
+                </h3>
+                {(product.customerFields as any[]).map((field: any, idx: number) => (
+                  <div key={idx}>
+                    <label className="text-sm text-muted-foreground block mb-1">
+                      {lang === 'ar' ? field.labelAr : field.labelEn}
+                      {field.required && <span className="text-destructive ms-1">*</span>}
+                    </label>
+                    {field.type === 'image' ? (
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setCustomerFieldValues(v => ({...v, [field.type]: reader.result as string}));
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2 text-sm"
+                      />
+                    ) : (
+                      <input
+                        type={field.type === 'password' ? 'password' : field.type === 'email' ? 'email' : field.type === 'phone' ? 'tel' : 'text'}
+                        value={customerFieldValues[field.type] || ''}
+                        onChange={e => setCustomerFieldValues(v => ({...v, [field.type]: e.target.value}))}
+                        placeholder={lang === 'ar' ? field.labelAr : field.labelEn}
+                        className="w-full bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-sm"
+                        dir={field.type === 'email' || field.type === 'phone' ? 'ltr' : undefined}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex gap-4 mt-auto">
               <div className="flex items-center bg-background border border-input rounded-xl overflow-hidden h-14 w-32 shrink-0">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="flex-1 hover:bg-muted transition-colors font-medium text-lg">-</button>
@@ -181,7 +222,15 @@ export default function ProductDetail() {
               <Button 
                 size="lg" 
                 className="flex-1 h-14 text-lg rounded-xl shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all hover:-translate-y-1"
-                onClick={() => addToCart(product, quantity)}
+                onClick={() => {
+                  const fields = (product.customerFields || []) as any[];
+                  const requiredMissing = fields.filter((f: any) => f.required && !customerFieldValues[f.type]?.trim());
+                  if (requiredMissing.length > 0) {
+                    toast.error(lang === 'ar' ? 'يرجى تعبئة الحقول المطلوبة' : 'Please fill required fields');
+                    return;
+                  }
+                  addToCart(product, quantity, Object.keys(customerFieldValues).length > 0 ? customerFieldValues : undefined);
+                }}
                 disabled={!product.active || product.stock === 0}
               >
                 <ShoppingCart className="w-5 h-5 mr-2 rtl:ml-2 rtl:mr-0" />
