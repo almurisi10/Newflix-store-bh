@@ -24,8 +24,14 @@ export default function MyOrders() {
   const handleDownloadInvoice = async (order: any) => {
     const storeName = getText('store.name', 'en') || 'NEWFLIX STORE';
     const storeNameAr = getText('store.name', 'ar') || 'نيوفلكس ستور';
+    const logoUrl = getText('store.logo', lang) || undefined;
     try {
-      await generateProfessionalInvoice(order, lang, storeName, storeNameAr, user ? { displayName: user.displayName, email: user.email } : undefined);
+      await generateProfessionalInvoice(
+        order, lang, storeName, storeNameAr,
+        user ? { displayName: user.displayName, email: user.email } : undefined,
+        logoUrl,
+        user?.uid
+      );
       toast.success(lang === 'ar' ? 'تم تحميل الفاتورة' : 'Invoice downloaded');
     } catch (err) {
       console.error('Invoice generation error:', err);
